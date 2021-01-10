@@ -1361,6 +1361,8 @@ The following parsers have been added:
 * Yaml *libyaml*
 * YumRepo
 * Zephir
+* ZettelMarkdown
+* ZettelMetadata *libyaml*
 
 See "Option library" for details on *optlib*.
 Libxml2 is required to use the parser(s) marked with *libxml*.

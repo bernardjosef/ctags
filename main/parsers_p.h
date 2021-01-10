@@ -29,7 +29,8 @@
 #ifdef HAVE_LIBYAML
 #define YAML_PARSER_LIST						\
 	YamlParser,									\
-	AnsiblePlaybookParser
+	AnsiblePlaybookParser, \
+	ZettelMetadataParser
 #else
 #define YAML_PARSER_LIST
 #endif
@@ -161,6 +162,7 @@
 	WindResParser, \
 	YaccParser, \
 	YumRepoParser, \
-	ZephirParser
+	ZephirParser, \
+	ZettelMarkdownParser
 
 #endif  /* CTAGS_MAIN_PARSERS_H */

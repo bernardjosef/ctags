@@ -296,6 +296,7 @@ PARSER_SRCS =				\
 	parsers/windres.c		\
 	parsers/yacc.c			\
 	parsers/yumrepo.c		\
+	parsers/zettelMarkdown.c	\
 	\
 	$(OPTLIB2C_SRCS)		\
 	\
@@ -319,6 +320,7 @@ YAML_SRCS = \
 	parsers/yaml.c		\
 	\
 	parsers/ansibleplaybook.c	\
+	parsers/zettelMetadata.c	\
 	\
 	$(NULL)
 

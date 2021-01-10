@@ -273,6 +273,8 @@
     <ClCompile Include="..\parsers\windres.c" />
     <ClCompile Include="..\parsers\yacc.c" />
     <ClCompile Include="..\parsers\yumrepo.c" />
+    <ClCompile Include="..\parsers\zettelMarkdown.c" />
+    <ClCompile Include="..\parsers\zettelMetadata.c" />
     <ClCompile Include="mkstemp\mkstemp.c" />
   </ItemGroup>
   <ItemGroup>
