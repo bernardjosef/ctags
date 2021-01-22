@@ -220,6 +220,7 @@ man_MANS = \
 	man/ctags-incompatibilities.7 \
 	man/ctags-optlib.7 \
 	\
+	man/ctags-lang-julia.7 \
 	man/ctags-lang-python.7 \
 	man/ctags-lang-verilog.7 \
 	man/ctags-lang-inko.7 \
@@ -235,4 +236,5 @@ SUFFIXES += .1.rst .1 .5.rst .5 .7.rst .7
 	$(rst2man_verbose)$(RST2MAN) $(RST2MAN_OPTIONS) $< $@
 .7.rst.7:
 	$(rst2man_verbose)$(RST2MAN) $(RST2MAN_OPTIONS) $< $@
+CLEANFILES += $(man_MANS)
 endif

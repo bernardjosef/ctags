@@ -4,6 +4,15 @@
 JSON output
 ======================================================================
 
+Experimental JSON output has been added. ``--output-format=json`` can be
+used to enable it.
+
+.. code-block:: console
+
+   $ ./ctags --output-format=json --fields=-s /tmp/foo.py
+   {"_type": "tag", "name": "Foo", "path": "/tmp/foo.py", "pattern": "/^class Foo:$/", "kind": "class"}
+   {"_type": "tag", "name": "doIt", "path": "/tmp/foo.py", "pattern": "/^    def doIt():$/", "kind": "member"}
+
 Format
 ----------------------------------------------------------------------
 
@@ -49,7 +58,7 @@ fields internally. As for all kinds, long names are used for printing
 ; kind letters are never used.
 
 If you need kind letters, open an issue at the GitHub site of
-Universal-ctags.
+Universal Ctags.
 
 .. NOT REVIEWED YET
 

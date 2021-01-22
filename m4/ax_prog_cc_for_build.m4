@@ -41,6 +41,10 @@ AC_REQUIRE([AC_PROG_CC_C99])dnl
 AC_REQUIRE([AC_PROG_CPP])dnl
 AC_REQUIRE([AC_CANONICAL_BUILD])dnl
 
+ac_cv_c_compiler_gnu_saved=$ac_cv_c_compiler_gnu
+
+unset ac_cv_c_compiler_gnu
+
 dnl Use the standard macros, but make them use other variable names
 dnl
 pushdef([ac_cv_prog_CPP], ac_cv_build_prog_CPP)dnl
@@ -86,9 +90,9 @@ AS_IF([test -n "$build"],      [ac_build_tool_prefix="$build-"],
 
 AC_LANG_PUSH([C])
 AC_PROG_CC
-AC_PROG_CC_C99
 _AC_COMPILER_EXEEXT
 _AC_COMPILER_OBJEXT
+AC_PROG_CC_C99
 AC_PROG_CPP
 
 dnl Restore the old definitions
@@ -127,6 +131,8 @@ popdef([ac_cv_prog_cc_c99])dnl
 popdef([ac_cv_prog_cc_c89])dnl
 popdef([ac_cv_prog_gcc])dnl
 popdef([ac_cv_prog_CPP])dnl
+
+ac_cv_c_compiler_gnu=$ac_cv_c_compiler_gnu_saved
 
 dnl restore global variables ac_ext, ac_cpp, ac_compile,
 dnl ac_link, ac_compiler_gnu (dependant on the current

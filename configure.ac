@@ -30,6 +30,8 @@ AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
+m4_ifndef([PKG_CHECK_EXISTS], [m4_fatal([must install pkg-config 0.18 or later before running ./autogen.sh])])
+
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 
@@ -759,6 +761,7 @@ AC_CONFIG_FILES([Makefile
 		 man/ctags-client-tools.7.rst
 		 man/ctags-incompatibilities.7.rst
 		 man/ctags-optlib.7.rst
+		 man/ctags-lang-julia.7.rst
 		 man/ctags-lang-python.7.rst
 		 man/ctags-lang-verilog.7.rst
 		 man/ctags-lang-inko.7.rst

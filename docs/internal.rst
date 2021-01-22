@@ -1,6 +1,8 @@
 ctags Internal API
 ---------------------------------------------------------------------
 
+.. _input-text-stream:
+
 Input text stream
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -8,7 +10,7 @@ Input text stream
 	    :scale: 80%
 
 Function prototypes for handling input text stream are declared in
-main/read.h. The file exists in exuberant ctags, too.  However, the
+main/read.h. The file exists in Exuberant Ctags, too.  However, the
 names functions are changed when overhauling ``--line-directive``
 option. (In addition macros were converted to functions for making
 data structures for the input text stream opaque.)
@@ -265,10 +267,10 @@ tokenInfo API
 
 .. NOT REVIEWED YET
 
-In Exuberant-ctags, a developer can write a parser anyway; only input
+In Exuberant Ctags, a developer can write a parser anyway; only input
 stream and tagEntryInfo data structure is given.
 
-However, while maintaining Universal-ctags I (Masatake YAMATO) think
+However, while maintaining Universal Ctags I (Masatake YAMATO) think
 we should have a framework for writing parser. Of course the framework
 is optional; you can still write a parser without the framework.
 
@@ -277,6 +279,7 @@ writes parsers. tokenInfo API is the first fruit of my study.
 
 TBW
 
+.. _output-tag-stream:
 
 Output tag stream
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -435,7 +438,7 @@ derived repositories.
 
 The source tree of packcc is grafted at misc/packcc directory.
 Building packcc and ctags are integrated in the build-scripts of
-Universal-ctags.
+Universal Ctags.
 
 .. TODO:
 	refer peg/* as a sample implementation
