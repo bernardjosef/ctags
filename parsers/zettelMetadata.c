@@ -41,8 +41,7 @@ struct sFmtElement {
 enum zettelMetadataRole {
 	R_NONE = -1,
 	R_INDEX = 0,
-	R_BIBLIOGRAPHY = 0,
-	R_REFERENCES = 0
+	R_BIBLIOGRAPHY = 0
 };
 
 static roleDefinition ZettelMetadataKeywordRoleTable [] = {
@@ -51,15 +50,9 @@ static roleDefinition ZettelMetadataKeywordRoleTable [] = {
 	}
 };
 
-static roleDefinition ZettelMetadataBibliographyRoleTable [] = {
-	{
-		true, "bibliography", "bibliography files"
-	}
-};
-
 static roleDefinition ZettelMetadataCitekeyRoleTable [] = {
 	{
-		true, "reference", "reference entries"
+		true, "bibliography", "bibliography entries"
 	}
 };
 
@@ -68,7 +61,6 @@ enum zettelMetadataKind {
 	K_ID,
 	K_TITLE,
 	K_KEYWORD,
-	K_BIBLIOGRAPHY,
 	K_CITEKEY,
 	K_REFTITLE
 };
@@ -84,11 +76,6 @@ static kindDefinition ZettelMetadataKindTable [] = {
 		true, 'k', "keyword", "keywords",
 		.referenceOnly = false,
 		ATTACH_ROLES (ZettelMetadataKeywordRoleTable)
-	},
-	{
-		true, 'b', "bibliography", "bibliography files",
-		.referenceOnly = false,
-		ATTACH_ROLES (ZettelMetadataBibliographyRoleTable)
 	},
 	{
 		true, 'c', "citekey", "citation keys",
@@ -144,7 +131,6 @@ static char *zmSummaryFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.ti
 static char *zmTitlePrefix = NULL;
 static char *zmReftitlePrefix = NULL;
 static char *zmKeywordPrefix = NULL;
-static char *zmBibliographyPrefix = NULL;
 
 static void zmSetSummaryFormat (const langType language CTAGS_ATTR_UNUSED,
 								const char *name,
@@ -174,13 +160,6 @@ static void zmSetKeywordPrefix (const langType language CTAGS_ATTR_UNUSED,
 	zmKeywordPrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
-static void zmSetBibliographyPrefix (const langType language CTAGS_ATTR_UNUSED,
-									 const char *name CTAGS_ATTR_UNUSED,
-									 const char *arg)
-{
-	zmBibliographyPrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
-}
-
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	{
 		.name = "summary-format",
@@ -201,11 +180,6 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.name = "keyword-prefix",
 		.desc = "Prepend reftitle tags (string)",
 		.handleParameter = zmSetKeywordPrefix
-	},
-	{
-		.name = "bibliography-prefix",
-		.desc = "Prepend bibliography tags (string)",
-		.handleParameter = zmSetBibliographyPrefix
 	}
 };
 
@@ -249,10 +223,8 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 		case K_TITLE:
 		case K_REFTITLE:
 		case K_KEYWORD:
-		case K_BIBLIOGRAPHY:
 		{
-			/* Escape zettel titles, reference titles, keywords and
-			 * bibliography files. */
+			/* Escape zettel titles, reference titles and keywords. */
 			size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
 			char *b = xMalloc (3 * length + 1, char);
 			char *p = b;
@@ -268,9 +240,6 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 			size_t keywordPrefixSize = zmKeywordPrefix == NULL
 				? 0
 				: strlen (zmKeywordPrefix);
-			size_t bibliographyPrefixSize = zmBibliographyPrefix == NULL
-				? 0
-				: strlen (zmBibliographyPrefix);
 
 			if (kind == K_TITLE)
 			{
@@ -283,9 +252,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 				else if ((reftitlePrefixSize > 0 &&
 						  strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0) ||
 						 (keywordPrefixSize > 0 &&
-						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0) ||
-						 (bibliographyPrefixSize > 0 &&
-						  strncmp (c, zmBibliographyPrefix, bibliographyPrefixSize) == 0))
+						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
 					p = zmStringEscape (p, c++, 1, true);
 			}
 			else if (kind == K_REFTITLE)
@@ -299,9 +266,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 				else if ((titlePrefixSize > 0 &&
 						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0) ||
 						 (keywordPrefixSize > 0 &&
-						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0) ||
-						 (bibliographyPrefixSize > 0 &&
-						  strncmp (c, zmBibliographyPrefix, bibliographyPrefixSize) == 0))
+						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
 					p = zmStringEscape (p, c++, 1, true);
 			}
 			else if (kind == K_KEYWORD)
@@ -315,25 +280,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 				else if ((titlePrefixSize > 0 &&
 						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0) ||
 						 (reftitlePrefixSize > 0 &&
-						  strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0) ||
-						 (bibliographyPrefixSize > 0 &&
-						  strncmp (c, zmBibliographyPrefix, bibliographyPrefixSize) == 0))
-					p = zmStringEscape (p, c++, 1, true);
-			}
-			else if (kind == K_BIBLIOGRAPHY)
-			{
-				if ((bibliographyPrefixSize > 0 &&
-					 strncmp (c, zmBibliographyPrefix, bibliographyPrefixSize) == 0))
-				{
-					p = strncpy (p, c, bibliographyPrefixSize) + bibliographyPrefixSize;
-					c += bibliographyPrefixSize;
-				}
-				else if ((titlePrefixSize > 0 &&
-						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0) ||
-						 (reftitlePrefixSize > 0 &&
-						  strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0) ||
-						 (keywordPrefixSize > 0 &&
-						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
+						  strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0))
 					p = zmStringEscape (p, c++, 1, true);
 			}
 
@@ -586,20 +533,6 @@ static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 			}
 			break;
 		}
-		case K_BIBLIOGRAPHY:
-		{
-			size_t size = zmBibliographyPrefix == NULL
-				? 0 :
-				strlen (zmBibliographyPrefix);
-
-			if (size > 0)
-			{
-				char *b = xMalloc (length + size + 1, char);
-				b = strcpy (b, zmBibliographyPrefix);
-				value = strcat (b, value);
-			}
-			break;
-		}
 		case K_CITEKEY:
 		{
 			/* Always prepend @ to citation keys. */
@@ -750,19 +683,12 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					subparser->kind = K_KEYWORD;
 					subparser->role = R_INDEX;
 				}
-				else if (token->data.scalar.length == 12 &&
-						 strncmp (value, "bibliography", 12) == 0)
-				{
-					subparser->scalarType = S_VALUE;
-					subparser->kind = K_BIBLIOGRAPHY;
-					subparser->role = R_BIBLIOGRAPHY;
-				}
 				else if (token->data.scalar.length == 6 &&
 						 strncmp (value, "nocite", 6) == 0)
 				{
 					subparser->scalarType = S_VALUE;
 					subparser->kind = K_CITEKEY;
-					subparser->role = R_REFERENCES;
+					subparser->role = R_BIBLIOGRAPHY;
 				}
 				else if (token->data.scalar.length == 10 &&
 						 strncmp (value, "references", 10) == 0)
