@@ -116,13 +116,13 @@ enum zettelMarkdownField {
 
 static fieldDefinition ZettelMarkdownFieldTable [] = {
 	{
-		.name = "tag",
-		.description = "tag name",
+		.name = "encodedTagName",
+		.description = "encoded tag name",
 		.render = zRenderFieldTag,
 		.enabled = false
 	},
 	{
-		.name = "summary",
+		.name = "summaryLine",
 		.description = "summary line",
 		.render = zRenderFieldSummary,
 		.enabled = false
@@ -156,10 +156,10 @@ static parameterHandlerTable ZettelMarkdownParameterHandlerTable [] = {
 
 static void findZettelMarkdownTags (void)
 {
-	/* This is needed to overwrite the value of the
-	 * _xformat command line option.  It can be set to
-	 * "%R %-16{*.tag} %-10z %4n %-16F %{*.summary}" by the
-	 * ZettelMarkdown xformat parameter for GNU Global. */
+	/* This is needed to overwrite the value of the _xformat command line
+	 * option.	It can be set to
+	 * "%R %-16{*.encodedTagName} %-10z %4n %-16F %{*.summaryLine}"
+	 * by the ZettelMarkdown xformat parameter for GNU Global. */
 	if (zXrefFormat != NULL)
 	{
 		if (Option.customXfmt) fmtDelete (Option.customXfmt);
@@ -216,10 +216,10 @@ static void initializeZettelMarkdownParser (const langType language)
 	/* Wiki link (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^(next:)\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "*\\2", "w", "{_role=identifier}{_field=tag:}{_field=summary:}{_extra=folgezettel}{_advanceTo=1end}", NULL);
+								   "*\\2", "w", "{_role=identifier}{_field=encodedTagName:}{_field=summaryLine:}{_extra=folgezettel}{_advanceTo=1end}", NULL);
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "\\1", "w", "{_role=identifier}{_field=tag:}{_field=summary:}", NULL);
+								   "\\1", "w", "{_role=identifier}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
 
 	/* Skip numbered examples (and skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
@@ -237,7 +237,7 @@ static void initializeZettelMarkdownParser (const langType language)
 	/* Pandoc citation (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^@([a-zA-Z0-9_][a-zA-Z0-9_:.#$%&-+?<>~/]*)(\n-+\n)?",
-								   "@\\1", "c", "{_role=bibliography}{_field=tag:}{_field=summary:}", NULL);
+								   "@\\1", "c", "{_role=bibliography}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
 
 	/* Skip backslash escapes, [, <, `, m, n, @ and level-two setext headers. */
 	addLanguageTagMultiTableRegex (language, "main",

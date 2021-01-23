@@ -16,8 +16,8 @@
 #include "parse.h"
 #include "trashbox.h"
 
-// The following lines are copied from fmt_p.h and fmt.c and needed for
-// zmRenderFieldSummary.
+/* The following lines are copied from fmt_p.h and fmt.c and needed for
+ * zmRenderFieldSummary. */
 typedef struct sFmtElement fmtElement;
 extern fmtElement *fmtNew (const char* fmtString);
 extern int fmtPrint (fmtElement * fmtelts, MIO* fp, const tagEntryInfo *tag);
@@ -100,13 +100,13 @@ enum zettelMetadataField {
 
 static fieldDefinition ZettelMetadataFieldTable [] = {
 	{
-		.name = "tag",
-		.description = "escaped tag name",
+		.name = "encodedTagName",
+		.description = "encoded tag name",
 		.render = zmRenderFieldTag,
 		.enabled = false
 	},
 	{
-		.name = "summary",
+		.name = "summaryLine",
 		.description = "summary line",
 		.render = zmRenderFieldSummary,
 		.enabled = false
@@ -166,8 +166,8 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	}
 };
 
-static char *zmStringEscape (char *buffer, char *string,
-							 size_t length, bool force)
+static char *zmPercentEncode (char *buffer, char *string,
+							  size_t length, bool force)
 {
 	static char hex[] = "0123456789abcdef";
 
@@ -180,10 +180,9 @@ static char *zmStringEscape (char *buffer, char *string,
 	for (int i = 0; i < length; c++, i++)
 	{
 		if (i < length &&
-			(force || *c < 0x21 || *c > 0x7E || *c == BACKSLASH))
+			(force || *c < 0x21 || *c > 0x7E || *c == '%'))
 		{
-			*p++ = BACKSLASH;
-			*p++ = 'x';
+			*p++ = '%';
 			*p++ = hex[*c >> 4 & 0x0F];
 			*p++ = hex[*c & 0x0F];
 		}
@@ -206,13 +205,14 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 		case K_TITLE:
 		case K_KEYWORD:
 		{
-			/* Escape zettel titles and keywords. */
+			/* Percent-encode zettel titles and keywords. */
 			size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
 			char *b = xMalloc (3 * length + 1, char);
 			char *p = b;
 
-			/* Skip the prefix of a prepended string or escape the first character
-			 * if the beginning of the string matches another prefix. */
+			/* Skip the prefix of a prepended string or percent-encode the
+			 * first character if the beginning of the string matches another
+			 * prefix. */
 			size_t titlePrefixSize = zmTitlePrefix == NULL
 				? 0
 				: strlen (zmTitlePrefix);
@@ -230,7 +230,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 				}
 				else if ((keywordPrefixSize > 0 &&
 						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
-					p = zmStringEscape (p, c++, 1, true);
+					p = zmPercentEncode (p, c++, 1, true);
 			}
 			else if (kind == K_KEYWORD)
 			{
@@ -242,21 +242,21 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 				}
 				else if ((titlePrefixSize > 0 &&
 						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0))
-					p = zmStringEscape (p, c++, 1, true);
+					p = zmPercentEncode (p, c++, 1, true);
 			}
 
-			/* Escape a leading exclamation mark as it conflicts with pseudo-tags
-			 * when sorting. */
+			/* Percent-encode a leading exclamation mark as it conflicts with
+			 * pseudo-tags when sorting. */
 			if (p == b && *c == '!')
-				p = zmStringEscape (p, c++, 1, true);
-			p = zmStringEscape (p, c, b + length - p, false);
+				p = zmPercentEncode (p, c++, 1, true);
+			p = zmPercentEncode (p, c, b + length - p, false);
 
 			vStringNCatS (buffer, b, p - b);
 			eFree (b);
 			break;
 		}
 		default:
-			/* Do not escape zettel identifiers and citation keys. */
+			/* Do not percent-encode zettel identifiers and citation keys. */
 			vStringCatS (buffer, c);
 
 			/* Find the first unexpected character for a warning message. */
@@ -347,8 +347,8 @@ static void zmPushTag (zmSubparser *subparser, int corkIndex)
 
 	t = xMalloc (1, zmCorkIndexStack);
 	t->corkIndex = corkIndex;
-    t->next = subparser->corkStack;
-    subparser->corkStack = t;
+	t->next = subparser->corkStack;
+	subparser->corkStack = t;
 }
 
 static void zmClearCorkStack (zmSubparser *subparser)
@@ -467,8 +467,8 @@ static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 
 		if (tag.kindIndex != K_NONE)
 		{
-			// The line number is meaningless if the parser is running as a
-			// guest parser.
+			/* The line number is meaningless if the parser is running as a
+			 * guest parser. */
 			tag.lineNumber = 1;
 			tag.filePosition = getInputFilePositionForLine (token->start_mark.line + 1);
 
@@ -531,9 +531,9 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 			break;
 		case YAML_KEY_TOKEN:
 			if (subparser->mapping == 1 && subparser->sequence == 0)
-                subparser->scalar = S_KEY;
-            else
-                subparser->scalar = S_NONE;
+				subparser->scalar = S_KEY;
+			else
+				subparser->scalar = S_NONE;
 			break;
 		case YAML_SCALAR_TOKEN:
 			if (subparser->scalar == S_KEY)
