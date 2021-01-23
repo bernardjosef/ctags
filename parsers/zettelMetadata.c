@@ -124,8 +124,7 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 };
 
 static char *zmSummaryFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
-static char *zmTitlePrefix = NULL;
-static char *zmKeywordPrefix = NULL;
+static bool zmPrefix = false;
 
 static void zmSetSummaryFormat (const langType language CTAGS_ATTR_UNUSED,
 								const char *name,
@@ -134,18 +133,11 @@ static void zmSetSummaryFormat (const langType language CTAGS_ATTR_UNUSED,
 	zmSummaryFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
-static void zmSetTitlePrefix (const langType language CTAGS_ATTR_UNUSED,
-							  const char *name CTAGS_ATTR_UNUSED,
-							  const char *arg)
+static void zmSetPrefix (const langType language CTAGS_ATTR_UNUSED,
+						 const char *name,
+						 const char *arg)
 {
-	zmTitlePrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
-}
-
-static void zmSetKeywordPrefix (const langType language CTAGS_ATTR_UNUSED,
-								const char *name CTAGS_ATTR_UNUSED,
-								const char *arg)
-{
-	zmKeywordPrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+	zmPrefix = paramParserBool (arg, zmPrefix, name, "parameter");
 }
 
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
@@ -155,14 +147,9 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.handleParameter = zmSetSummaryFormat
 	},
 	{
-		.name = "title-prefix",
-		.desc = "Prepend title tags (string)",
-		.handleParameter = zmSetTitlePrefix
-	},
-	{
-		.name = "keyword-prefix",
-		.desc = "Prepend reftitle tags (string)",
-		.handleParameter = zmSetKeywordPrefix
+		.name = "prefix-title-and-keyword-tags",
+		.desc = "Prefix title and keyword tags with # (true or [false])",
+		.handleParameter = zmSetPrefix
 	}
 };
 
@@ -205,45 +192,10 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 		case K_TITLE:
 		case K_KEYWORD:
 		{
-			/* Percent-encode zettel titles and keywords. */
+			/* Percent-encode title and keywords tags. */
 			size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
 			char *b = xMalloc (3 * length + 1, char);
 			char *p = b;
-
-			/* Skip the prefix of a prepended string or percent-encode the
-			 * first character if the beginning of the string matches another
-			 * prefix. */
-			size_t titlePrefixSize = zmTitlePrefix == NULL
-				? 0
-				: strlen (zmTitlePrefix);
-			size_t keywordPrefixSize = zmKeywordPrefix == NULL
-				? 0
-				: strlen (zmKeywordPrefix);
-
-			if (kind == K_TITLE)
-			{
-				if ((titlePrefixSize > 0 &&
-					 strncmp (c, zmTitlePrefix, titlePrefixSize) == 0))
-				{
-					p = strncpy (p, c, titlePrefixSize) + titlePrefixSize;
-					c += titlePrefixSize;
-				}
-				else if ((keywordPrefixSize > 0 &&
-						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
-					p = zmPercentEncode (p, c++, 1, true);
-			}
-			else if (kind == K_KEYWORD)
-			{
-				if ((keywordPrefixSize > 0 &&
-					 strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
-				{
-					p = strncpy (p, c, keywordPrefixSize) + keywordPrefixSize;
-					c += keywordPrefixSize;
-				}
-				else if ((titlePrefixSize > 0 &&
-						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0))
-					p = zmPercentEncode (p, c++, 1, true);
-			}
 
 			/* Percent-encode a leading exclamation mark as it conflicts with
 			 * pseudo-tags when sorting. */
@@ -408,42 +360,26 @@ static void zmResetSubparser (zmSubparser *subparser)
 static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 {
 	char *value = (char *)token->data.scalar.value;
-	size_t length = value == NULL ? 0 : strlen (value);
 
-	/* Prepend a prefix to the tag. */
 	switch (subparser->kind)
 	{
 		case K_TITLE:
-		{
-			size_t size = zmTitlePrefix == NULL
-				? 0 :
-				strlen (zmTitlePrefix);
-
-			if (size > 0)
-			{
-				char *b = xMalloc (length + size + 1, char);
-				b = strcpy (b, zmTitlePrefix);
-				value = strcat (b, value);
-			}
-			break;
-		}
 		case K_KEYWORD:
 		{
-			size_t size = zmKeywordPrefix == NULL
-				? 0 :
-				strlen (zmKeywordPrefix);
-
-			if (size > 0)
+			if (zmPrefix)
 			{
-				char *b = xMalloc (length + size + 1, char);
-				b = strcpy (b, zmKeywordPrefix);
+				/* Prefix title and keyword tags with #. */
+				size_t length = value == NULL ? 0 : strlen (value);
+				char *b = xMalloc (length + 2, char);
+				b = strcpy (b, "#");
 				value = strcat (b, value);
 			}
 			break;
 		}
 		case K_CITEKEY:
 		{
-			/* Always prepend @ to citation keys. */
+			/* Always prefix citation keys with @. */
+			size_t length = value == NULL ? 0 : strlen (value);
 			char *b = xMalloc (length + 2, char);
 			b = strcpy (b, "@");
 			value = strcat (b, value);
