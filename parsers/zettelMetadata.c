@@ -61,8 +61,7 @@ enum zettelMetadataKind {
 	K_ID,
 	K_TITLE,
 	K_KEYWORD,
-	K_CITEKEY,
-	K_REFTITLE
+	K_CITEKEY
 };
 
 static kindDefinition ZettelMetadataKindTable [] = {
@@ -81,9 +80,6 @@ static kindDefinition ZettelMetadataKindTable [] = {
 		true, 'c', "citekey", "citation keys",
 		.referenceOnly = false,
 		ATTACH_ROLES (ZettelMetadataCitekeyRoleTable)
-	},
-	{
-		true, 'r', "reftitle", "reference titles"
 	}
 };
 
@@ -117,19 +113,18 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 	},
 	{
 		.name = "identifier",
-		.description = "zettel identifier or citation key",
+		.description = "zettel identifier",
 		.enabled = false
 	},
 	{
 		.name = "title",
-		.description = "zettel title or reference title",
+		.description = "zettel title",
 		.enabled = false
 	}
 };
 
 static char *zmSummaryFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmTitlePrefix = NULL;
-static char *zmReftitlePrefix = NULL;
 static char *zmKeywordPrefix = NULL;
 
 static void zmSetSummaryFormat (const langType language CTAGS_ATTR_UNUSED,
@@ -144,13 +139,6 @@ static void zmSetTitlePrefix (const langType language CTAGS_ATTR_UNUSED,
 							  const char *arg)
 {
 	zmTitlePrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
-}
-
-static void zmSetReftitlePrefix (const langType language CTAGS_ATTR_UNUSED,
-								 const char *name CTAGS_ATTR_UNUSED,
-								 const char *arg)
-{
-	zmReftitlePrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
 static void zmSetKeywordPrefix (const langType language CTAGS_ATTR_UNUSED,
@@ -170,11 +158,6 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.name = "title-prefix",
 		.desc = "Prepend title tags (string)",
 		.handleParameter = zmSetTitlePrefix
-	},
-	{
-		.name = "reftitle-prefix",
-		.desc = "Prepend reftitle tags (string)",
-		.handleParameter = zmSetReftitlePrefix
 	},
 	{
 		.name = "keyword-prefix",
@@ -221,10 +204,9 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 	switch (kind)
 	{
 		case K_TITLE:
-		case K_REFTITLE:
 		case K_KEYWORD:
 		{
-			/* Escape zettel titles, reference titles and keywords. */
+			/* Escape zettel titles and keywords. */
 			size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
 			char *b = xMalloc (3 * length + 1, char);
 			char *p = b;
@@ -234,9 +216,6 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 			size_t titlePrefixSize = zmTitlePrefix == NULL
 				? 0
 				: strlen (zmTitlePrefix);
-			size_t reftitlePrefixSize = zmReftitlePrefix == NULL
-				? 0
-				: strlen (zmReftitlePrefix);
 			size_t keywordPrefixSize = zmKeywordPrefix == NULL
 				? 0
 				: strlen (zmKeywordPrefix);
@@ -249,23 +228,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 					p = strncpy (p, c, titlePrefixSize) + titlePrefixSize;
 					c += titlePrefixSize;
 				}
-				else if ((reftitlePrefixSize > 0 &&
-						  strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0) ||
-						 (keywordPrefixSize > 0 &&
-						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
-					p = zmStringEscape (p, c++, 1, true);
-			}
-			else if (kind == K_REFTITLE)
-			{
-				if ((reftitlePrefixSize > 0 &&
-					 strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0))
-				{
-					p = strncpy (p, c, reftitlePrefixSize) + reftitlePrefixSize;
-					c += reftitlePrefixSize;
-				}
-				else if ((titlePrefixSize > 0 &&
-						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0) ||
-						 (keywordPrefixSize > 0 &&
+				else if ((keywordPrefixSize > 0 &&
 						  strncmp (c, zmKeywordPrefix, keywordPrefixSize) == 0))
 					p = zmStringEscape (p, c++, 1, true);
 			}
@@ -278,9 +241,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 					c += keywordPrefixSize;
 				}
 				else if ((titlePrefixSize > 0 &&
-						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0) ||
-						 (reftitlePrefixSize > 0 &&
-						  strncmp (c, zmReftitlePrefix, reftitlePrefixSize) == 0))
+						  strncmp (c, zmTitlePrefix, titlePrefixSize) == 0))
 					p = zmStringEscape (p, c++, 1, true);
 			}
 
@@ -332,7 +293,6 @@ static const char *zmRenderFieldSummary (const tagEntryInfo *const tag,
 enum zettelMetadataScalar {
 	S_NONE,
 	S_KEY,
-	S_REFERENCE,
 	S_VALUE
 };
 
@@ -352,15 +312,11 @@ typedef struct sZmSubparser {
 	enum zettelMetadataRole role;
 	enum zettelMetadataScalar scalarType;
 	zmYamlTokenTypeStack *blockTypeStack;
-	bool reference;
 	int mapping;
 	int sequence;
 	char *id;
 	char *title;
-	char *citekey;
-	char *reftitle;
 	zmCorkIndexStack *corkStack;
-	zmCorkIndexStack *refCorkStack;
 } zmSubparser;
 
 static void zmPushTokenType (zmSubparser *subparser,
@@ -391,17 +347,8 @@ static void zmPushTag (zmSubparser *subparser, int corkIndex)
 
 	t = xMalloc (1, zmCorkIndexStack);
 	t->corkIndex = corkIndex;
-
-	if (subparser->reference)
-	{
-		t->next = subparser->refCorkStack;
-		subparser->refCorkStack = t;
-	}
-	else
-	{
-		t->next = subparser->corkStack;
-		subparser->corkStack = t;
-	}
+    t->next = subparser->corkStack;
+    subparser->corkStack = t;
 }
 
 static void zmClearCorkStack (zmSubparser *subparser)
@@ -429,31 +376,6 @@ static void zmClearCorkStack (zmSubparser *subparser)
 	}
 }
 
-static void zmClearRefCorkStack (zmSubparser *subparser)
-{
-	while (subparser->refCorkStack != NULL)
-	{
-		zmCorkIndexStack *t = subparser->refCorkStack;
-
-		if (subparser->citekey != NULL &&
-			(ZettelMetadataFieldTable[F_IDENTIFIER].enabled ||
-			 ZettelMetadataFieldTable[F_SUMMARY].enabled))
-			attachParserFieldToCorkEntry (t->corkIndex,
-										  ZettelMetadataFieldTable[F_IDENTIFIER].ftype,
-										  subparser->citekey);
-
-		if (subparser->reftitle != NULL &&
-			(ZettelMetadataFieldTable[F_TITLE].enabled ||
-			 ZettelMetadataFieldTable[F_SUMMARY].enabled))
-			attachParserFieldToCorkEntry (t->corkIndex,
-										  ZettelMetadataFieldTable[F_TITLE].ftype,
-										  subparser->reftitle);
-
-		subparser->refCorkStack = t->next;
-		eFree (t);
-	}
-}
-
 static void zmResetSubparser (zmSubparser *subparser)
 {
 	subparser->kind = K_NONE;
@@ -465,7 +387,6 @@ static void zmResetSubparser (zmSubparser *subparser)
 		zmPopTokenType (subparser);
 	}
 
-	subparser->reference = false;
 	subparser->mapping = 0;
 	subparser->sequence = 0;
 
@@ -481,20 +402,7 @@ static void zmResetSubparser (zmSubparser *subparser)
 		subparser->title = NULL;
 	}
 
-	if (subparser->citekey != NULL)
-	{
-		eFree (subparser->citekey);
-		subparser->citekey = NULL;
-	}
-
-	if (subparser->reftitle != NULL)
-	{
-		eFree (subparser->reftitle);
-		subparser->reftitle = NULL;
-	}
-
 	zmClearCorkStack (subparser);
-	zmClearRefCorkStack (subparser);
 }
 
 static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
@@ -539,20 +447,6 @@ static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 			char *b = xMalloc (length + 2, char);
 			b = strcpy (b, "@");
 			value = strcat (b, value);
-			break;
-		}
-		case K_REFTITLE:
-		{
-			size_t size = zmReftitlePrefix == NULL
-				? 0 :
-				strlen (zmReftitlePrefix);
-
-			if (size > 0)
-			{
-				char *b = xMalloc (length + size + 1, char);
-				b = strcpy (b, zmReftitlePrefix);
-				value = strcat (b, value);
-			}
 			break;
 		}
 		default:
@@ -608,7 +502,6 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 		case YAML_DOCUMENT_START_TOKEN:
 		case YAML_DOCUMENT_END_TOKEN:
 			zmClearCorkStack (subparser);
-			zmClearRefCorkStack (subparser);
 			break;
 		case YAML_BLOCK_MAPPING_START_TOKEN:
 		case YAML_FLOW_MAPPING_START_TOKEN:
@@ -624,10 +517,6 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 			if (zmPopTokenType (subparser) == YAML_BLOCK_MAPPING_START_TOKEN)
 			{
 				subparser->mapping--;
-				if (subparser->reference &&
-					subparser->mapping < 2 &&
-					subparser->sequence < 2)
-					zmClearRefCorkStack (subparser);
 			}
 			else
 				subparser->sequence--;
@@ -635,9 +524,6 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 		case YAML_FLOW_MAPPING_END_TOKEN:
 			zmPopTokenType (subparser);
 			subparser->mapping--;
-			if (subparser->mapping < 2 &&
-				subparser->sequence < 2)
-				zmClearRefCorkStack (subparser);
 			break;
 		case YAML_FLOW_SEQUENCE_END_TOKEN:
 			zmPopTokenType (subparser);
@@ -650,12 +536,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					subparser->scalarType = S_KEY;
 				else
 					subparser->scalarType = S_NONE;
-				subparser->reference = false;
 			}
-			else if (subparser->reference &&
-					 subparser->mapping == 2 &&
-					 subparser->sequence < 2)
-				subparser->scalarType = S_REFERENCE;
 			break;
 		case YAML_SCALAR_TOKEN:
 			if (subparser->scalarType == S_KEY)
@@ -690,38 +571,6 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					subparser->kind = K_CITEKEY;
 					subparser->role = R_BIBLIOGRAPHY;
 				}
-				else if (token->data.scalar.length == 10 &&
-						 strncmp (value, "references", 10) == 0)
-				{
-					subparser->scalarType = S_NONE;
-					subparser->kind = K_NONE;
-					subparser->role = R_NONE;
-					subparser->reference = true;
-				}
-				else
-				{
-					subparser->kind = K_NONE;
-					subparser->role = R_NONE;
-				}
-			}
-			else if (subparser->scalarType == S_REFERENCE)
-			{
-				char *value = (char *)token->data.scalar.value;
-
-				if (token->data.scalar.length == 2 &&
-					strncmp (value, "id", 2) == 0)
-				{
-					subparser->scalarType = S_VALUE;
-					subparser->kind = K_CITEKEY;
-					subparser->role = R_NONE;
-				}
-				else if (token->data.scalar.length == 5 &&
-						 strncmp (value, "title", 5) == 0)
-				{
-					subparser->scalarType = S_VALUE;
-					subparser->kind = K_REFTITLE;
-					subparser->role = R_NONE;
-				}
 				else
 				{
 					subparser->kind = K_NONE;
@@ -729,8 +578,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 				}
 			}
 			else if (subparser->scalarType == S_VALUE &&
-					 (subparser->mapping == 1 ||
-					  (subparser->reference && subparser->mapping == 2)))
+					 subparser->mapping == 1)
 			{
 				char *value = (char *)token->data.scalar.value;
 				size_t length = token->data.scalar.length;
@@ -752,24 +600,6 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					subparser->title = xMalloc (length + 1, char);
 					strncpy (subparser->title, value, length);
 					subparser->title[length] = '\0';
-				}
-				else if (subparser->reference && subparser->kind == K_CITEKEY)
-				{
-					if (subparser->citekey != NULL)
-						eFree (subparser->citekey);
-
-					subparser->citekey = xMalloc (length + 1, char);
-					strncpy (subparser->citekey, value, length);
-					subparser->citekey[length] = '\0';
-				}
-				else if (subparser->reference && subparser->kind == K_REFTITLE)
-				{
-					if (subparser->reftitle != NULL)
-						eFree (subparser->reftitle);
-
-					subparser->reftitle = xMalloc (length + 1, char);
-					strncpy (subparser->reftitle, value, length);
-					subparser->reftitle[length] = '\0';
 				}
 
 				zmMakeTagEntry (subparser, token);
@@ -798,15 +628,11 @@ extern parserDefinition* ZettelMetadataParser (void)
 		.role = R_NONE,
 		.scalarType = S_NONE,
 		.blockTypeStack = NULL,
-		.reference = false,
 		.mapping = 0,
 		.sequence = 0,
 		.id = NULL,
 		.title = NULL,
-		.citekey = NULL,
-		.reftitle = NULL,
 		.corkStack = NULL,
-		.refCorkStack = NULL
 	};
 
 		static parserDependency ZettelMetadataDependencies [] = {
