@@ -308,9 +308,9 @@ typedef struct sZmCorkIndexStack {
 
 typedef struct sZmSubparser {
 	yamlSubparser yaml;
+	enum zettelMetadataScalar scalar;
 	enum zettelMetadataKind kind;
 	enum zettelMetadataRole role;
-	enum zettelMetadataScalar scalarType;
 	zmYamlTokenTypeStack *blockTypeStack;
 	int mapping;
 	int sequence;
@@ -378,9 +378,9 @@ static void zmClearCorkStack (zmSubparser *subparser)
 
 static void zmResetSubparser (zmSubparser *subparser)
 {
+	subparser->scalar = S_NONE;
 	subparser->kind = K_NONE;
 	subparser->role = R_NONE;
-	subparser->scalarType = S_NONE;
 
 	while (subparser->blockTypeStack != NULL)
 	{
@@ -530,44 +530,41 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 			subparser->sequence--;
 			break;
 		case YAML_KEY_TOKEN:
-			if (subparser->mapping == 1)
-			{
-				if (subparser->sequence == 0)
-					subparser->scalarType = S_KEY;
-				else
-					subparser->scalarType = S_NONE;
-			}
+			if (subparser->mapping == 1 && subparser->sequence == 0)
+                subparser->scalar = S_KEY;
+            else
+                subparser->scalar = S_NONE;
 			break;
 		case YAML_SCALAR_TOKEN:
-			if (subparser->scalarType == S_KEY)
+			if (subparser->scalar == S_KEY)
 			{
 				char *value = (char *)token->data.scalar.value;
 
 				if (token->data.scalar.length == 2 &&
 					strncmp (value, "id", 2) == 0)
 				{
-					subparser->scalarType = S_VALUE;
+					subparser->scalar = S_VALUE;
 					subparser->kind = K_ID;
 					subparser->role = R_NONE;
 				}
 				else if (token->data.scalar.length == 5 &&
 						 strncmp (value, "title", 5) == 0)
 				{
-					subparser->scalarType = S_VALUE;
+					subparser->scalar = S_VALUE;
 					subparser->kind = K_TITLE;
 					subparser->role = R_NONE;
 				}
 				else if (token->data.scalar.length == 8 &&
 						 strncmp (value, "keywords", 8) == 0)
 				{
-					subparser->scalarType = S_VALUE;
+					subparser->scalar = S_VALUE;
 					subparser->kind = K_KEYWORD;
 					subparser->role = R_INDEX;
 				}
 				else if (token->data.scalar.length == 6 &&
 						 strncmp (value, "nocite", 6) == 0)
 				{
-					subparser->scalarType = S_VALUE;
+					subparser->scalar = S_VALUE;
 					subparser->kind = K_CITEKEY;
 					subparser->role = R_BIBLIOGRAPHY;
 				}
@@ -577,7 +574,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					subparser->role = R_NONE;
 				}
 			}
-			else if (subparser->scalarType == S_VALUE &&
+			else if (subparser->scalar == S_VALUE &&
 					 subparser->mapping == 1)
 			{
 				char *value = (char *)token->data.scalar.value;
@@ -624,9 +621,9 @@ extern parserDefinition* ZettelMetadataParser (void)
 			},
 			.newTokenNotfify = zmNewTokenCallback
 		},
+		.scalar = S_NONE,
 		.kind = K_NONE,
 		.role = R_NONE,
-		.scalarType = S_NONE,
 		.blockTypeStack = NULL,
 		.mapping = 0,
 		.sequence = 0,
