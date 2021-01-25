@@ -148,7 +148,7 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	},
 	{
 		.name = "prefix-title-and-keyword-tags",
-		.desc = "Prefix title and keyword tags with # (true or [false])",
+		.desc = "Prefix title tags with _ and keyword tags with # (true or [false])",
 		.handleParameter = zmSetPrefix
 	}
 };
@@ -360,33 +360,36 @@ static void zmResetSubparser (zmSubparser *subparser)
 static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 {
 	char *value = (char *)token->data.scalar.value;
+	char prefix = '\0';
 
 	switch (subparser->kind)
 	{
 		case K_TITLE:
-		case K_KEYWORD:
-		{
 			if (zmPrefix)
-			{
-				/* Prefix title and keyword tags with #. */
-				size_t length = value == NULL ? 0 : strlen (value);
-				char *b = xMalloc (length + 2, char);
-				b = strcpy (b, "#");
-				value = strcat (b, value);
-			}
+				/* Prefix title tags with _. */
+				prefix = '_';
 			break;
-		}
+		case K_KEYWORD:
+			if (zmPrefix)
+				/* Prefix title tags with #. */
+				prefix = '#';
+			break;
 		case K_CITEKEY:
-		{
 			/* Always prefix citation keys with @. */
-			size_t length = value == NULL ? 0 : strlen (value);
-			char *b = xMalloc (length + 2, char);
-			b = strcpy (b, "@");
-			value = strcat (b, value);
+			prefix = '@';
 			break;
-		}
 		default:
 			break;
+
+	}
+
+	if (prefix != '\0')
+	{
+		size_t length = value == NULL ? 0 : strlen (value);
+		char *b = xMalloc (length + 2, char);
+		b[0] = prefix;
+		b[1] = '\0';
+		value = strcat (b, value);
 	}
 
 	if (ZettelMetadataKindTable[subparser->kind].enabled)
