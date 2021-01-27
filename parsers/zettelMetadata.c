@@ -166,8 +166,7 @@ static char *zmPercentEncode (char *buffer, char *string,
 
 	for (int i = 0; i < length; c++, i++)
 	{
-		if (i < length &&
-			(force || *c < 0x21 || *c > 0x7E || *c == '%'))
+		if (i < length && (force || *c < 0x21 || *c > 0x7E || *c == '%'))
 		{
 			*p++ = '%';
 			*p++ = hex[*c >> 4 & 0x0F];
@@ -309,14 +308,14 @@ static void zmClearCorkStack (zmSubparser *subparser)
 	{
 		zmCorkIndexStack *t = subparser->corkStack;
 
-		if (subparser->id != NULL &&
+		if (subparser->id &&
 			(ZettelMetadataFieldTable[F_IDENTIFIER].enabled ||
 			 ZettelMetadataFieldTable[F_SUMMARY].enabled))
 			attachParserFieldToCorkEntry (t->corkIndex,
 										  ZettelMetadataFieldTable[F_IDENTIFIER].ftype,
 										  subparser->id);
 
-		if (subparser->title != NULL &&
+		if (subparser->title &&
 			(ZettelMetadataFieldTable[F_TITLE].enabled ||
 			 ZettelMetadataFieldTable[F_SUMMARY].enabled))
 			attachParserFieldToCorkEntry (t->corkIndex,
@@ -342,13 +341,13 @@ static void zmResetSubparser (zmSubparser *subparser)
 	subparser->mapping = 0;
 	subparser->sequence = 0;
 
-	if (subparser->id != NULL)
+	if (subparser->id)
 	{
 		eFree (subparser->id);
 		subparser->id = NULL;
 	}
 
-	if (subparser->title != NULL)
+	if (subparser->title)
 	{
 		eFree (subparser->title);
 		subparser->title = NULL;
@@ -357,41 +356,8 @@ static void zmResetSubparser (zmSubparser *subparser)
 	zmClearCorkStack (subparser);
 }
 
-static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
+static void zmMakeTagEntry (zmSubparser *subparser, char *value, unsigned int line)
 {
-	char *value = (char *)token->data.scalar.value;
-	char prefix = '\0';
-
-	switch (subparser->kind)
-	{
-		case K_TITLE:
-			if (zmPrefix)
-				/* Prefix title tags with _. */
-				prefix = '_';
-			break;
-		case K_KEYWORD:
-			if (zmPrefix)
-				/* Prefix title tags with #. */
-				prefix = '#';
-			break;
-		case K_CITEKEY:
-			/* Always prefix citation keys with @. */
-			prefix = '@';
-			break;
-		default:
-			break;
-
-	}
-
-	if (prefix != '\0')
-	{
-		size_t length = value == NULL ? 0 : strlen (value);
-		char *b = xMalloc (length + 2, char);
-		b[0] = prefix;
-		b[1] = '\0';
-		value = strcat (b, value);
-	}
-
 	if (ZettelMetadataKindTable[subparser->kind].enabled)
 	{
 		tagEntryInfo tag;
@@ -409,7 +375,7 @@ static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 			/* The line number is meaningless if the parser is running as a
 			 * guest parser. */
 			tag.lineNumber = 1;
-			tag.filePosition = getInputFilePositionForLine (token->start_mark.line + 1);
+			tag.filePosition = getInputFilePositionForLine (line);
 
 			attachParserField (&tag, false,
 							   ZettelMetadataFieldTable[F_TAG].ftype,
@@ -422,9 +388,6 @@ static void zmMakeTagEntry (zmSubparser *subparser, yaml_token_t *token)
 			zmPushTag (subparser, makeTagEntry (&tag));
 		}
 	}
-
-	if (value != (char *)token->data.scalar.value)
-		eFree (value);
 }
 
 static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
@@ -516,29 +479,84 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 			else if (subparser->scalar == S_VALUE &&
 					 subparser->mapping == 1)
 			{
-				char *value = (char *)token->data.scalar.value;
-				size_t length = token->data.scalar.length;
-
-				if (subparser->kind == K_ID)
+				switch (subparser->kind)
 				{
-					if (subparser->id != NULL)
-						eFree (subparser->id);
+					case K_ID:
+					{
+						size_t length = token->data.scalar.length;
 
-					subparser->id = xMalloc (length + 1, char);
-					strncpy (subparser->id, value, length);
-					subparser->id[length] = '\0';
+						if (subparser->id)
+							eFree (subparser->id);
+
+						subparser->id = xMalloc (length + 1, char);
+						strncpy (subparser->id,
+								 (char *)token->data.scalar.value,
+								 length);
+						subparser->id[length] = '\0';
+
+						zmMakeTagEntry (subparser,
+										(char *)token->data.scalar.value,
+										token->start_mark.line + 1);
+						break;
+					}
+					case K_TITLE:
+					{
+						size_t length = token->data.scalar.length;
+
+						if (subparser->title)
+							eFree (subparser->title);
+
+						subparser->title = xMalloc (length + 1, char);
+						strncpy (subparser->title,
+								 (char *)token->data.scalar.value,
+								 length);
+						subparser->title[length] = '\0';
+						/* No break. */
+					}
+					case K_KEYWORD:
+						if (zmPrefix)
+						{
+							/* Prefix title and keyword tags. */
+							size_t length = token->data.scalar.length;
+							char *b = xMalloc (length + 2, char);
+
+							if (subparser->kind == K_TITLE)
+								b = strcpy (b, "_");
+							else
+								b = strcpy (b, "#");
+
+							char *value = strcat (b, ((char *)token->data.scalar.value));
+
+							zmMakeTagEntry (subparser,
+											value,
+											token->start_mark.line + 1);
+
+							eFree (value);
+						}
+						else
+							zmMakeTagEntry (subparser,
+											(char *)token->data.scalar.value,
+											token->start_mark.line + 1);
+						break;
+					case K_CITEKEY:
+					{
+						/* Split the scalar value into citation keys. */
+						char *value = strdup ((char *)token->data.scalar.value);
+						char *p = value;
+						char *citekey;
+
+						while ((citekey = strsep (&p, ", \t\n\r")) != NULL)
+							if (*citekey == '@')
+								zmMakeTagEntry (subparser,
+												citekey,
+												token->start_mark.line + 1);
+
+						eFree (value);
+						break;
+					}
+					default:
+						break;
 				}
-				else if (subparser->kind == K_TITLE)
-				{
-					if (subparser->title != NULL)
-						eFree (subparser->title);
-
-					subparser->title = xMalloc (length + 1, char);
-					strncpy (subparser->title, value, length);
-					subparser->title[length] = '\0';
-				}
-
-				zmMakeTagEntry (subparser, token);
 			}
 			break;
 		default:
@@ -571,9 +589,9 @@ extern parserDefinition* ZettelMetadataParser (void)
 		.corkStack = NULL,
 	};
 
-		static parserDependency ZettelMetadataDependencies [] = {
-				{ DEPTYPE_SUBPARSER, "Yaml", &zmSubparser },
-		};
+	static parserDependency ZettelMetadataDependencies [] = {
+		{ DEPTYPE_SUBPARSER, "Yaml", &zmSubparser },
+	};
 
 	parserDefinition* const def = parserNew ("ZettelMetadata");
 
