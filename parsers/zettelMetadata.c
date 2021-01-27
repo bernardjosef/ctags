@@ -123,14 +123,22 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 	}
 };
 
-static char *zmSummaryFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
+static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
+static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static bool zmPrefix = false;
 
-static void zmSetSummaryFormat (const langType language CTAGS_ATTR_UNUSED,
-								const char *name,
-								const char *arg)
+static void zmSetSummaryDefFormat (const langType language CTAGS_ATTR_UNUSED,
+								   const char *name,
+								   const char *arg)
 {
-	zmSummaryFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+	zmSummaryDefFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+}
+
+static void zmSetSummaryRefFormat (const langType language CTAGS_ATTR_UNUSED,
+								   const char *name,
+								   const char *arg)
+{
+	zmSummaryRefFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
 static void zmSetPrefix (const langType language CTAGS_ATTR_UNUSED,
@@ -142,9 +150,14 @@ static void zmSetPrefix (const langType language CTAGS_ATTR_UNUSED,
 
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	{
-		.name = "summary-format",
-		.desc = "Summary format string (string)",
-		.handleParameter = zmSetSummaryFormat
+		.name = "summary-definition-format",
+		.desc = "Summary format string for definitions (string)",
+		.handleParameter = zmSetSummaryDefFormat
+	},
+	{
+		.name = "summary-reference-format",
+		.desc = "Summary format string for references (string)",
+		.handleParameter = zmSetSummaryRefFormat
 	},
 	{
 		.name = "prefix-title-and-keyword-tags",
@@ -225,12 +238,21 @@ static const char *zmRenderFieldSummary (const tagEntryInfo *const tag,
 										 const char *value CTAGS_ATTR_UNUSED,
 										 vString *buffer)
 {
-	static fmtElement *fmt = NULL;
-	if (fmt == NULL) fmt = fmtNew (zmSummaryFormat);
+	static fmtElement *defFmt = NULL;
+	static fmtElement *refFmt = NULL;
 
 	MIO *mio = mio_new_memory (NULL, 0, eRealloc, eFreeNoNullCheck);
 
-	fmtPrint (fmt, mio, tag);
+	if (tag->extensionFields.roleBits)
+	{
+		if (refFmt == NULL) refFmt = fmtNew (zmSummaryRefFormat);
+		fmtPrint (refFmt, mio, tag);
+	}
+	else
+	{
+		if (defFmt == NULL) defFmt = fmtNew (zmSummaryDefFormat);
+		fmtPrint (defFmt, mio, tag);
+	}
 
 	size_t size = 0;
 	char *s = (char *)mio_memory_get_data (mio, &size);
