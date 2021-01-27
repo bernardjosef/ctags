@@ -51,63 +51,11 @@ static kindDefinition ZettelMarkdownKindTable [] = {
 
 static const char *zRenderFieldTag (const tagEntryInfo *const tag,
 									const char *value CTAGS_ATTR_UNUSED,
-									vString *buffer)
-{
-	char *c = (char *)tag->name;
-
-	vStringCatS (buffer, c);
-
-	/* Find the first unexpected character for a warning message. */
-	if (*c != '!') while (*c > 0x20 && *c < 0x7F) c++;
-	if (*c)
-		verbose ("Unexpected character %#04x in tag %s\n",
-				 (unsigned char)*c, vStringValue (buffer));
-
-	return vStringValue (buffer);
-}
+									vString *buffer);
 
 static const char *zRenderFieldSummary (const tagEntryInfo *const tag,
 										const char *value CTAGS_ATTR_UNUSED,
-										vString *buffer)
-{
-	static vString *tmp;
-	tmp = vStringNewOrClearWithAutoRelease (tmp);
-	char *line = readLineFromBypassForTag (tmp, tag, NULL);
-
-	if (line)
-	{
-		/* The following is essentially the function renderCompactInputLine
-		 * from field.c. */
-		bool lineStarted = false;
-		const char *p = line;
-		int c = *p;
-
-		/*	Write everything up to, but not including, the newline. */
-		for (;	c != NEWLINE  &&  c != '\0'; c = *++p)
-		{
-			if (lineStarted	 || ! isspace (c))	/* Ignore leading spaces. */
-			{
-				lineStarted = true;
-
-				if (isspace (c))
-				{
-					int next;
-
-					/*	Consume repeating white space. */
-					while (next = *(p + 1) , isspace (next)	 &&	 next != NEWLINE) ++p;
-					c = SPACE;	/* Force space character for any white space. */
-				}
-
-				if (c != CRETURN  ||  *(p + 1) != NEWLINE)
-					vStringPut (buffer, c);
-			}
-		}
-	}
-	else
-		vStringClear (buffer);
-
-	return vStringValue (buffer);
-}
+										vString *buffer);
 
 enum zettelMarkdownField {
 	F_TAG,
@@ -138,6 +86,7 @@ static xtagDefinition ZettelMarkdownXtagTable [] = {
 };
 
 static char *zXrefFormat = NULL;
+static char *zSummaryFormat = "%C";
 
 static void zProcessXformatOption (const langType language CTAGS_ATTR_UNUSED,
 								   const char *name CTAGS_ATTR_UNUSED,
@@ -146,13 +95,62 @@ static void zProcessXformatOption (const langType language CTAGS_ATTR_UNUSED,
 	zXrefFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
+static void zSetSummaryFormat (const langType language CTAGS_ATTR_UNUSED,
+							   const char *name,
+							   const char *arg)
+{
+	zSummaryFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+}
+
 static parameterHandlerTable ZettelMarkdownParameterHandlerTable [] = {
 	{
 		.name = "xformat",
 		.desc = "Specify custom xref format (string)",
 		.handleParameter = zProcessXformatOption
+	},
+	{
+		.name = "summary-format",
+		.desc = "Summary format string (string)",
+		.handleParameter = zSetSummaryFormat
 	}
 };
+
+static const char *zRenderFieldTag (const tagEntryInfo *const tag,
+									const char *value CTAGS_ATTR_UNUSED,
+									vString *buffer)
+{
+	char *c = (char *)tag->name;
+
+	vStringCatS (buffer, c);
+
+	/* Find the first unexpected character for a warning message. */
+	if (*c != '!') while (*c > 0x20 && *c < 0x7F) c++;
+	if (*c)
+		verbose ("Unexpected character %#04x in tag %s\n",
+				 (unsigned char)*c, vStringValue (buffer));
+
+	return vStringValue (buffer);
+}
+
+static const char *zRenderFieldSummary (const tagEntryInfo *const tag,
+										const char *value CTAGS_ATTR_UNUSED,
+										vString *buffer)
+{
+	static fmtElement *fmt = NULL;
+	if (fmt == NULL) fmt = fmtNew (zSummaryFormat);
+
+	MIO *mio = mio_new_memory (NULL, 0, eRealloc, eFreeNoNullCheck);
+
+	fmtPrint (fmt, mio, tag);
+
+	size_t size = 0;
+	char *s = (char *)mio_memory_get_data (mio, &size);
+	vStringNCatS (buffer, s, size);
+
+	mio_unref (mio);
+
+	return vStringValue (buffer);
+}
 
 static void findZettelMarkdownTags (void)
 {
