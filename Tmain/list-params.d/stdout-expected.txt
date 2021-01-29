@@ -1,10 +1,16 @@
 # ALL
-#LANGUAGE      NAME    DESCRIPTION
-CPreProcessor  _expand expand macros if their definitions are in the current C/C++/CUDA input file (true or [false])
-CPreProcessor  define  define replacement for an identifier (name(params,...)=definition)
-CPreProcessor  if0     examine code within "#if 0" branch (true or [false])
-CPreProcessor  ignore  a token to be specially handled
-Fypp           guest   parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+#LANGUAGE       NAME                          DESCRIPTION
+CPreProcessor   _expand                       expand macros if their definitions are in the current C/C++/CUDA input file (true or [false])
+CPreProcessor   define                        define replacement for an identifier (name(params,...)=definition)
+CPreProcessor   if0                           examine code within "#if 0" branch (true or [false])
+CPreProcessor   ignore                        a token to be specially handled
+Fypp            guest                         parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+ZettelMarkdown  summary-definition-format     Summary format string for definitions (string)
+ZettelMarkdown  summary-reference-format      Summary format string for references (string)
+ZettelMarkdown  xformat                       Specify custom xref format (string)
+ZettelMetadata  prefix-title-and-keyword-tags Prefix title tags with _ and keyword tags with # (true or [false])
+ZettelMetadata  summary-definition-format     Summary format string for definitions (string)
+ZettelMetadata  summary-reference-format      Summary format string for references (string)
 
 # ALL MACHINABLE
 #LANGUAGE	NAME	DESCRIPTION
@@ -13,6 +19,12 @@ CPreProcessor	define	define replacement for an identifier (name(params,...)=defi
 CPreProcessor	if0	examine code within "#if 0" branch (true or [false])
 CPreProcessor	ignore	a token to be specially handled
 Fypp	guest	parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+ZettelMarkdown	summary-definition-format	Summary format string for definitions (string)
+ZettelMarkdown	summary-reference-format	Summary format string for references (string)
+ZettelMarkdown	xformat	Specify custom xref format (string)
+ZettelMetadata	prefix-title-and-keyword-tags	Prefix title tags with _ and keyword tags with # (true or [false])
+ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
+ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
 # ALL MACHINABLE NOHEADER
 CPreProcessor	_expand	expand macros if their definitions are in the current C/C++/CUDA input file (true or [false])
@@ -20,6 +32,12 @@ CPreProcessor	define	define replacement for an identifier (name(params,...)=defi
 CPreProcessor	if0	examine code within "#if 0" branch (true or [false])
 CPreProcessor	ignore	a token to be specially handled
 Fypp	guest	parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+ZettelMarkdown	summary-definition-format	Summary format string for definitions (string)
+ZettelMarkdown	summary-reference-format	Summary format string for references (string)
+ZettelMarkdown	xformat	Specify custom xref format (string)
+ZettelMetadata	prefix-title-and-keyword-tags	Prefix title tags with _ and keyword tags with # (true or [false])
+ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
+ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
 # CPP
 #NAME    DESCRIPTION

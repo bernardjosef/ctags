@@ -56,6 +56,12 @@ z	kind	no	NONE	s--	no	[tags output] prepend "kind:" to k/ (or K/) field output, 
 -	parameter	no	SystemVerilog	--b	no	parameter whose value can be overridden.
 -	architecture	yes	VHDL	s--	no	architecture designing the entity
 -	parameter	no	Verilog	--b	no	parameter whose value can be overridden.
+-	encodedTagName	no	ZettelMarkdown	s--	no	encoded tag name
+-	summaryLine	no	ZettelMarkdown	s--	no	summary line
+-	encodedTagName	no	ZettelMetadata	s--	no	encoded tag name
+-	identifier	no	ZettelMetadata	s--	no	zettel identifier
+-	summaryLine	no	ZettelMetadata	s--	no	summary line
+-	title	no	ZettelMetadata	s--	no	zettel title
 #
 Foo	input.java	/^abstract public class Foo extends Bar$/
 x	input.java	/^    public int x;$/

@@ -20,3 +20,4 @@ TclOO                Tcl        base <> sub {bidirectional}
 TeXBeamer            Tex        base <> sub {bidirectional}
 XSLT                 XML        base <> sub {bidirectional}
 YumRepo              Iniconf    base <= sub {dedicated}
+ZettelMetadata       Yaml       base <> sub {bidirectional}
