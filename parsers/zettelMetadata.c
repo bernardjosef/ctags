@@ -41,7 +41,9 @@ struct sFmtElement {
 enum zettelMetadataRole {
 	R_NONE = -1,
 	R_INDEX = 0,
-	R_BIBLIOGRAPHY = 0
+	R_BIBLIOGRAPHY = 0,
+	R_IDENTIFIER = 0,
+	R_FOLGEZETTEL
 };
 
 static roleDefinition ZettelMetadataKeywordRoleTable [] = {
@@ -56,12 +58,24 @@ static roleDefinition ZettelMetadataCitekeyRoleTable [] = {
 	}
 };
 
+static roleDefinition ZettelMetadataNextlinkRoleTable [] = {
+	{
+		true, "identifier", "zettel identifiers"
+	},
+	{
+		true, "folgezettel", "folgezettel identifiers"
+	}
+};
+
 enum zettelMetadataKind {
-	K_NONE = -1,
+	K_NEXTLINK_FOLGEZETTEL = -3,
+	K_FOLGEZETTEL,
+	K_NONE,
 	K_ID,
 	K_TITLE,
 	K_KEYWORD,
-	K_CITEKEY
+	K_CITEKEY,
+	K_NEXTLINK
 };
 
 static kindDefinition ZettelMetadataKindTable [] = {
@@ -80,6 +94,11 @@ static kindDefinition ZettelMetadataKindTable [] = {
 		true, 'c', "citekey", "citation keys",
 		.referenceOnly = false,
 		ATTACH_ROLES (ZettelMetadataCitekeyRoleTable)
+	},
+	{
+		true, 'n', "nextlink", "next zettel links",
+		.referenceOnly = false,
+		ATTACH_ROLES (ZettelMetadataNextlinkRoleTable)
 	}
 };
 
@@ -119,6 +138,24 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 	{
 		.name = "title",
 		.description = "zettel title",
+		.enabled = false
+	}
+};
+
+enum zettelMetadataXtag {
+	X_NEXTLINK,
+	X_FOLGEZETTEL
+};
+
+static xtagDefinition ZettelMetadataXtagTable [] = {
+	{
+		.name = "nextlink",
+		.description = "Include tags for next links",
+		.enabled = false
+	},
+	{
+		.name = "folgezettel",
+		.description = "Include Folgezettel tags for next links",
 		.enabled = false
 	}
 };
@@ -283,7 +320,6 @@ typedef struct sZmSubparser {
 	yamlSubparser yaml;
 	enum zettelMetadataScalar scalar;
 	enum zettelMetadataKind kind;
-	enum zettelMetadataRole role;
 	zmYamlTokenTypeStack *blockTypeStack;
 	int mapping;
 	int sequence;
@@ -353,7 +389,6 @@ static void zmResetSubparser (zmSubparser *subparser)
 {
 	subparser->scalar = S_NONE;
 	subparser->kind = K_NONE;
-	subparser->role = R_NONE;
 
 	while (subparser->blockTypeStack != NULL)
 	{
@@ -378,19 +413,19 @@ static void zmResetSubparser (zmSubparser *subparser)
 	zmClearCorkStack (subparser);
 }
 
-static void zmMakeTagEntry (zmSubparser *subparser, char *value, unsigned int line)
+static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, int roleIndex, unsigned int line)
 {
-	if (ZettelMetadataKindTable[subparser->kind].enabled)
+	if (ZettelMetadataKindTable[kindIndex].enabled)
 	{
 		tagEntryInfo tag;
 
 		tag.kindIndex = K_NONE;
 
-		if (subparser->role == R_NONE)
-			initTagEntry (&tag, value, subparser->kind);
-		else if (subparser->role < ZettelMetadataKindTable[subparser->kind].nRoles &&
-				 ZettelMetadataKindTable[subparser->kind].roles[subparser->role].enabled)
-			initRefTagEntry (&tag, value, subparser->kind, subparser->role);
+		if (roleIndex == R_NONE)
+			initTagEntry (&tag, value, kindIndex);
+		else if (roleIndex < ZettelMetadataKindTable[kindIndex].nRoles &&
+				 ZettelMetadataKindTable[kindIndex].roles[roleIndex].enabled)
+			initRefTagEntry (&tag, value, kindIndex, roleIndex);
 
 		if (tag.kindIndex != K_NONE)
 		{
@@ -469,34 +504,43 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_ID;
-					subparser->role = R_NONE;
 				}
 				else if (token->data.scalar.length == 5 &&
 						 strncmp (value, "title", 5) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_TITLE;
-					subparser->role = R_NONE;
 				}
 				else if (token->data.scalar.length == 8 &&
 						 strncmp (value, "keywords", 8) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_KEYWORD;
-					subparser->role = R_INDEX;
 				}
 				else if (token->data.scalar.length == 6 &&
 						 strncmp (value, "nocite", 6) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_CITEKEY;
-					subparser->role = R_BIBLIOGRAPHY;
+				}
+				else if (token->data.scalar.length == 4 &&
+						 strncmp (value, "next", 4) == 0)
+				{
+					subparser->scalar = S_VALUE;
+
+					/* Use pseudo-kinds for Folgezettel tags. */
+					if (isXtagEnabled(ZettelMetadataXtagTable[X_NEXTLINK].xtype))
+					{
+						if (isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
+							subparser->kind = K_NEXTLINK_FOLGEZETTEL;
+						else
+							subparser->kind = K_NEXTLINK;
+					}
+					else if (isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
+						subparser->kind = K_FOLGEZETTEL;
 				}
 				else
-				{
 					subparser->kind = K_NONE;
-					subparser->role = R_NONE;
-				}
 			}
 			else if (subparser->scalar == S_VALUE &&
 					 subparser->mapping == 1)
@@ -518,6 +562,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 						zmMakeTagEntry (subparser,
 										(char *)token->data.scalar.value,
+										K_ID, K_NONE,
 										token->start_mark.line + 1);
 						break;
 					}
@@ -533,7 +578,12 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 								 (char *)token->data.scalar.value,
 								 length);
 						subparser->title[length] = '\0';
-						/* No break. */
+
+						zmMakeTagEntry (subparser,
+										(char *)token->data.scalar.value,
+										K_TITLE, K_NONE,
+										token->start_mark.line + 1);
+						break;
 					}
 					case K_KEYWORD:
 						if (zmPrefix)
@@ -551,6 +601,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 							zmMakeTagEntry (subparser,
 											value,
+											K_KEYWORD, R_INDEX,
 											token->start_mark.line + 1);
 
 							eFree (value);
@@ -558,6 +609,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
+											K_KEYWORD, R_INDEX,
 											token->start_mark.line + 1);
 						break;
 					case K_CITEKEY:
@@ -571,7 +623,33 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 							if (*citekey == '@')
 								zmMakeTagEntry (subparser,
 												citekey,
+												K_CITEKEY, R_BIBLIOGRAPHY,
 												token->start_mark.line + 1);
+
+						eFree (value);
+						break;
+					}
+					case K_NEXTLINK_FOLGEZETTEL:
+					case K_NEXTLINK:
+						zmMakeTagEntry (subparser,
+										(char *)token->data.scalar.value,
+										K_NEXTLINK, R_IDENTIFIER,
+										token->start_mark.line + 1);
+						if (subparser->kind == K_NEXTLINK)
+							break;
+					case K_FOLGEZETTEL:
+					{
+						/* Prefix Folgezettel tags. */
+						size_t length = token->data.scalar.length;
+						char *b = xMalloc (length + 2, char);
+
+						b = strcpy (b, "_");
+
+						char *value = strcat (b, ((char *)token->data.scalar.value));
+						zmMakeTagEntry (subparser,
+										value,
+										K_NEXTLINK, R_FOLGEZETTEL,
+										token->start_mark.line + 1);
 
 						eFree (value);
 						break;
@@ -602,7 +680,6 @@ extern parserDefinition* ZettelMetadataParser (void)
 		},
 		.scalar = S_NONE,
 		.kind = K_NONE,
-		.role = R_NONE,
 		.blockTypeStack = NULL,
 		.mapping = 0,
 		.sequence = 0,
@@ -627,6 +704,9 @@ extern parserDefinition* ZettelMetadataParser (void)
 
 	def->fieldTable = ZettelMetadataFieldTable;
 	def->fieldCount = ARRAY_SIZE (ZettelMetadataFieldTable);
+
+	def->xtagTable = ZettelMetadataXtagTable;
+	def->xtagCount = ARRAY_SIZE (ZettelMetadataXtagTable);
 
 	def->parameterHandlerTable = ZettelMetadataParameterHandlerTable;
 	def->parameterHandlerCount = ARRAY_SIZE (ZettelMetadataParameterHandlerTable);

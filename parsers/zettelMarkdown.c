@@ -28,6 +28,9 @@ static roleDefinition ZettelMarkdownWikilinkRoleTable [] = {
 	{
 		true, "identifier", "zettel identifiers"
 	},
+	{
+		true, "folgezettel", "folgezettel identifiers"
+	}
 };
 
 static roleDefinition ZettelMarkdownCitekeyRoleTable [] = {
@@ -236,7 +239,7 @@ static void initializeZettelMarkdownParser (const langType language)
 	/* Wiki link (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^(next:)\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "_\\2", "w", "{_role=identifier}{_field=encodedTagName:}{_field=summaryLine:}{_extra=folgezettel}{_advanceTo=1end}", NULL);
+								   "_\\2", "w", "{_role=folgezettel}{_field=encodedTagName:}{_field=summaryLine:}{_extra=folgezettel}{_advanceTo=1end}", NULL);
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
 								   "\\1", "w", "{_role=identifier}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
