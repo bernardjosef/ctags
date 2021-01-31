@@ -579,23 +579,38 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 								 length);
 						subparser->title[length] = '\0';
 
-						zmMakeTagEntry (subparser,
-										(char *)token->data.scalar.value,
-										K_TITLE, K_NONE,
-										token->start_mark.line + 1);
+						if (zmPrefix)
+						{
+							/* Prefix title tags. */
+							size_t length = token->data.scalar.length;
+							char *b = xMalloc (length + 2, char);
+
+							b = strcpy (b, "_");
+
+							char *value = strcat (b, ((char *)token->data.scalar.value));
+
+							zmMakeTagEntry (subparser,
+											value,
+											K_TITLE, R_NONE,
+											token->start_mark.line + 1);
+
+							eFree (value);
+						}
+						else
+							zmMakeTagEntry (subparser,
+											(char *)token->data.scalar.value,
+											K_TITLE, K_NONE,
+											token->start_mark.line + 1);
 						break;
 					}
 					case K_KEYWORD:
 						if (zmPrefix)
 						{
-							/* Prefix title and keyword tags. */
+							/* Prefix keyword tags. */
 							size_t length = token->data.scalar.length;
 							char *b = xMalloc (length + 2, char);
 
-							if (subparser->kind == K_TITLE)
-								b = strcpy (b, "_");
-							else
-								b = strcpy (b, "#");
+							b = strcpy (b, "#");
 
 							char *value = strcat (b, ((char *)token->data.scalar.value));
 
