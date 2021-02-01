@@ -42,48 +42,42 @@ enum zettelMetadataRole {
 	R_NONE = -1,
 	R_INDEX = 0,
 	R_BIBLIOGRAPHY = 0,
-	R_IDENTIFIER = 0,
-	R_FOLGEZETTEL
+	R_NEXT = 0
 };
 
 static roleDefinition ZettelMetadataKeywordRoleTable [] = {
 	{
-		true, "index", "index entries"
+		true, "index", "index references"
 	}
 };
 
 static roleDefinition ZettelMetadataCitekeyRoleTable [] = {
 	{
-		true, "bibliography", "bibliography entries"
+		true, "bibliography", "bibliography references"
 	}
 };
 
-static roleDefinition ZettelMetadataNextlinkRoleTable [] = {
+static roleDefinition ZettelMetadataNextRoleTable [] = {
 	{
-		true, "identifier", "zettel identifiers"
-	},
-	{
-		true, "folgezettel", "folgezettel identifiers"
+		true, "next", "folgezettel references"
 	}
 };
 
 enum zettelMetadataKind {
-	K_NEXTLINK_FOLGEZETTEL = -3,
-	K_FOLGEZETTEL,
-	K_NONE,
+	K_NONE = -1,
 	K_ID,
 	K_TITLE,
 	K_KEYWORD,
 	K_CITEKEY,
-	K_NEXTLINK
+	K_NEXT
 };
 
 static kindDefinition ZettelMetadataKindTable [] = {
 	{
-		true, 'i', "id", "identifiers"
+		true, 'i', "id", "zettel identifiers"
 	},
 	{
-		true, 't', "title", "titles"
+		true, 't', "title", "zettel titles"
 	},
 	{
 		true, 'k', "keyword", "keywords",
@@ -96,9 +90,9 @@ static kindDefinition ZettelMetadataKindTable [] = {
 		ATTACH_ROLES (ZettelMetadataCitekeyRoleTable)
 	},
 	{
-		true, 'n', "nextlink", "next zettel links",
+		true, 'n', "next", "folgezettel links",
 		.referenceOnly = false,
-		ATTACH_ROLES (ZettelMetadataNextlinkRoleTable)
+		ATTACH_ROLES (ZettelMetadataNextRoleTable)
 	}
 };
 
@@ -143,19 +137,13 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 };
 
 enum zettelMetadataXtag {
-	X_NEXTLINK,
 	X_FOLGEZETTEL
 };
 
 static xtagDefinition ZettelMetadataXtagTable [] = {
 	{
-		.name = "nextlink",
-		.description = "Include tags for next links",
-		.enabled = false
-	},
-	{
 		.name = "folgezettel",
-		.description = "Include Folgezettel tags for next links",
+		.description = "Include extra tags for Folgezettel links",
 		.enabled = false
 	}
 };
@@ -163,6 +151,7 @@ static xtagDefinition ZettelMetadataXtagTable [] = {
 static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static bool zmPrefix = false;
+static bool zmPrefixFolgezettel = false;
 
 static void zmSetSummaryDefFormat (const langType language CTAGS_ATTR_UNUSED,
 								   const char *name,
@@ -185,6 +174,14 @@ static void zmSetPrefix (const langType language CTAGS_ATTR_UNUSED,
 	zmPrefix = paramParserBool (arg, zmPrefix, name, "parameter");
 }
 
+static void zmSetPrefixFolgezettel (const langType language CTAGS_ATTR_UNUSED,
+									const char *name,
+									const char *arg)
+{
+	zmPrefixFolgezettel = paramParserBool (arg, zmPrefixFolgezettel,
+										   name, "parameter");
+}
+
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	{
 		.name = "summary-definition-format",
@@ -200,6 +197,11 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.name = "prefix-title-and-keyword-tags",
 		.desc = "Prefix title tags with _ and keyword tags with # (true or [false])",
 		.handleParameter = zmSetPrefix
+	},
+	{
+		.name = "prefix-folgezettel-tags",
+		.desc = "Prefix Folgezettel tags with _ (true or [false])",
+		.handleParameter = zmSetPrefixFolgezettel
 	}
 };
 
@@ -527,17 +529,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						 strncmp (value, "next", 4) == 0)
 				{
 					subparser->scalar = S_VALUE;
-
-					/* Use pseudo-kinds for Folgezettel tags. */
-					if (isXtagEnabled(ZettelMetadataXtagTable[X_NEXTLINK].xtype))
-					{
-						if (isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
-							subparser->kind = K_NEXTLINK_FOLGEZETTEL;
-						else
-							subparser->kind = K_NEXTLINK;
-					}
-					else if (isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
-						subparser->kind = K_FOLGEZETTEL;
+					subparser->kind = K_NEXT;
 				}
 				else
 					subparser->kind = K_NONE;
@@ -562,7 +554,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 						zmMakeTagEntry (subparser,
 										(char *)token->data.scalar.value,
-										K_ID, K_NONE,
+										K_ID, R_NONE,
 										token->start_mark.line + 1);
 						break;
 					}
@@ -599,7 +591,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_TITLE, K_NONE,
+											K_TITLE, R_NONE,
 											token->start_mark.line + 1);
 						break;
 					}
@@ -644,29 +636,32 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						eFree (value);
 						break;
 					}
-					case K_NEXTLINK_FOLGEZETTEL:
-					case K_NEXTLINK:
-						zmMakeTagEntry (subparser,
-										(char *)token->data.scalar.value,
-										K_NEXTLINK, R_IDENTIFIER,
-										token->start_mark.line + 1);
-						if (subparser->kind == K_NEXTLINK)
-							break;
-					case K_FOLGEZETTEL:
+					case K_NEXT:
 					{
-						/* Prefix Folgezettel tags. */
-						size_t length = token->data.scalar.length;
-						char *b = xMalloc (length + 2, char);
+						if (zmPrefixFolgezettel ||
+							isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
+						{
+							/* Prefix Folgezettel tags. */
+							size_t length = token->data.scalar.length;
+							char *b = xMalloc (length + 2, char);
 
-						b = strcpy (b, "_");
+							b = strcpy (b, "_");
 
-						char *value = strcat (b, ((char *)token->data.scalar.value));
-						zmMakeTagEntry (subparser,
-										value,
-										K_NEXTLINK, R_FOLGEZETTEL,
-										token->start_mark.line + 1);
+							char *value = strcat (b, ((char *)token->data.scalar.value));
+							zmMakeTagEntry (subparser,
+											value,
+											K_NEXT, R_NEXT,
+											token->start_mark.line + 1);
 
-						eFree (value);
+							eFree (value);
+						}
+
+						if (!zmPrefixFolgezettel)
+							zmMakeTagEntry (subparser,
+											(char *)token->data.scalar.value,
+											K_NEXT, R_NEXT,
+											token->start_mark.line + 1);
+
 						break;
 					}
 					default:

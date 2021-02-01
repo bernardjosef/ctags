@@ -92,10 +92,9 @@ Vera            h/header          system             on      system header
 ZettelMarkdown  c/citekey         bibliography       on      bibliography entries
 ZettelMarkdown  w/wikilink        next               on      folgezettel references
 ZettelMarkdown  w/wikilink        ref                on      references
-ZettelMetadata  c/citekey         bibliography       on      bibliography entries
-ZettelMetadata  k/keyword         index              on      index entries
-ZettelMetadata  n/nextlink        folgezettel        on      folgezettel identifiers
-ZettelMetadata  n/nextlink        identifier         on      zettel identifiers
+ZettelMetadata  c/citekey         bibliography       on      bibliography references
+ZettelMetadata  k/keyword         index              on      index references
+ZettelMetadata  n/next            next               on      folgezettel references
 
 #
 # all.*
@@ -190,10 +189,9 @@ Vera            h/header          system             on      system header
 ZettelMarkdown  c/citekey         bibliography       on      bibliography entries
 ZettelMarkdown  w/wikilink        next               on      folgezettel references
 ZettelMarkdown  w/wikilink        ref                on      references
-ZettelMetadata  c/citekey         bibliography       on      bibliography entries
-ZettelMetadata  k/keyword         index              on      index entries
-ZettelMetadata  n/nextlink        folgezettel        on      folgezettel identifiers
-ZettelMetadata  n/nextlink        identifier         on      zettel identifiers
+ZettelMetadata  c/citekey         bibliography       on      bibliography references
+ZettelMetadata  k/keyword         index              on      index references
+ZettelMetadata  n/next            next               on      folgezettel references
 
 #
 # C.*
