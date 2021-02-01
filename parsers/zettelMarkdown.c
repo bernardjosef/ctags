@@ -26,10 +26,10 @@ extern char *readLineFromBypassForTag (vString *const vLine,
 
 static roleDefinition ZettelMarkdownWikilinkRoleTable [] = {
 	{
-		true, "identifier", "zettel identifiers"
+		true, "ref", "references"
 	},
 	{
-		true, "folgezettel", "folgezettel identifiers"
+		true, "next", "folgezettel references"
 	}
 };
 
@@ -60,11 +60,6 @@ static const char *zRenderFieldSummary (const tagEntryInfo *const tag,
 										const char *value CTAGS_ATTR_UNUSED,
 										vString *buffer);
 
-enum zettelMarkdownField {
-	F_TAG,
-	F_SUMMARY
-};
-
 static fieldDefinition ZettelMarkdownFieldTable [] = {
 	{
 		.name = "encodedTagName",
@@ -83,7 +78,7 @@ static fieldDefinition ZettelMarkdownFieldTable [] = {
 static xtagDefinition ZettelMarkdownXtagTable [] = {
 	{
 		.name = "folgezettel",
-		.description = "Include tags for Folgezettel links",
+		.description = "Include extra tags for Folgezettel links",
 		.enabled = false
 	}
 };
@@ -238,11 +233,16 @@ static void initializeZettelMarkdownParser (const langType language)
 
 	/* Wiki link (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
-								   "^(next:)\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "_\\2", "w", "{_role=folgezettel}{_field=encodedTagName:}{_field=summaryLine:}{_extra=folgezettel}{_advanceTo=1end}", NULL);
+								   "^n(ext:)\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
+								   "_\\2", "w", "{_role=next}{_field=encodedTagName:}{_field=summaryLine:}{_extra=folgezettel}{_advanceTo=1start}", NULL);
+    /* It is necessary to advance at least one letter.  Therefore we
+     * parse against ext: instead of next: here for the next role.*/
+	addLanguageTagMultiTableRegex (language, "main",
+								   "^ext:\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
+								   "\\1", "w", "{_role=next}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "\\1", "w", "{_role=identifier}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
+								   "\\1", "w", "{_role=ref}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
 
 	/* Skip numbered examples (and skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",

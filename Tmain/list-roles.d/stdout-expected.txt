@@ -90,8 +90,8 @@ Vera            d/macro           undef              on      undefined
 Vera            h/header          local              on      local header
 Vera            h/header          system             on      system header
 ZettelMarkdown  c/citekey         bibliography       on      bibliography entries
-ZettelMarkdown  w/wikilink        folgezettel        on      folgezettel identifiers
-ZettelMarkdown  w/wikilink        identifier         on      zettel identifiers
+ZettelMarkdown  w/wikilink        next               on      folgezettel references
+ZettelMarkdown  w/wikilink        ref                on      references
 ZettelMetadata  c/citekey         bibliography       on      bibliography entries
 ZettelMetadata  k/keyword         index              on      index entries
 ZettelMetadata  n/nextlink        folgezettel        on      folgezettel identifiers
@@ -188,8 +188,8 @@ Vera            d/macro           undef              on      undefined
 Vera            h/header          local              on      local header
 Vera            h/header          system             on      system header
 ZettelMarkdown  c/citekey         bibliography       on      bibliography entries
-ZettelMarkdown  w/wikilink        folgezettel        on      folgezettel identifiers
-ZettelMarkdown  w/wikilink        identifier         on      zettel identifiers
+ZettelMarkdown  w/wikilink        next               on      folgezettel references
+ZettelMarkdown  w/wikilink        ref                on      references
 ZettelMetadata  c/citekey         bibliography       on      bibliography entries
 ZettelMetadata  k/keyword         index              on      index entries
 ZettelMetadata  n/nextlink        folgezettel        on      folgezettel identifiers
