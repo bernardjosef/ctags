@@ -83,6 +83,7 @@
 	FalconParser, \
 	FlexParser, \
 	FortranParser, \
+	FunctionParametersParser, \
 	FyppParser,	   \
 	GdbinitParser, \
 	GoParser, \
