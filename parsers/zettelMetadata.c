@@ -151,7 +151,6 @@ static xtagDefinition ZettelMetadataXtagTable [] = {
 static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static bool zmPrefix = false;
-static bool zmPrefixFolgezettel = false;
 
 static void zmSetSummaryDefFormat (const langType language CTAGS_ATTR_UNUSED,
 								   const char *name,
@@ -174,14 +173,6 @@ static void zmSetPrefix (const langType language CTAGS_ATTR_UNUSED,
 	zmPrefix = paramParserBool (arg, zmPrefix, name, "parameter");
 }
 
-static void zmSetPrefixFolgezettel (const langType language CTAGS_ATTR_UNUSED,
-									const char *name,
-									const char *arg)
-{
-	zmPrefixFolgezettel = paramParserBool (arg, zmPrefixFolgezettel,
-										   name, "parameter");
-}
-
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	{
 		.name = "summary-definition-format",
@@ -194,14 +185,9 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.handleParameter = zmSetSummaryRefFormat
 	},
 	{
-		.name = "prefix-title-and-keyword-tags",
-		.desc = "Prefix title tags with _ and keyword tags with # (true or [false])",
+		.name = "prefix-tags",
+		.desc = "Prefix title, keyword and Folgezettel tags (true or [false])",
 		.handleParameter = zmSetPrefix
-	},
-	{
-		.name = "prefix-folgezettel-tags",
-		.desc = "Prefix Folgezettel tags with _ (true or [false])",
-		.handleParameter = zmSetPrefixFolgezettel
 	}
 };
 
@@ -638,8 +624,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					}
 					case K_NEXT:
 					{
-						if (zmPrefixFolgezettel ||
-							isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
+						if (zmPrefix)
 						{
 							/* Prefix Folgezettel tags. */
 							size_t length = token->data.scalar.length;
@@ -656,7 +641,8 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 							eFree (value);
 						}
 
-						if (!zmPrefixFolgezettel)
+						if (!zmPrefix ||
+							isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
 											K_NEXT, R_NEXT,
