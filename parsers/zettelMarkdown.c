@@ -27,9 +27,6 @@ extern char *readLineFromBypassForTag (vString *const vLine,
 static roleDefinition ZettelMarkdownWikilinkRoleTable [] = {
 	{
 		true, "ref", "references"
-	},
-	{
-		true, "next", "folgezettel references"
 	}
 };
 
@@ -71,14 +68,6 @@ static fieldDefinition ZettelMarkdownFieldTable [] = {
 		.name = "summaryLine",
 		.description = "summary line",
 		.render = zRenderFieldSummary,
-		.enabled = false
-	}
-};
-
-static xtagDefinition ZettelMarkdownXtagTable [] = {
-	{
-		.name = "folgezettel",
-		.description = "Include extra tags for Folgezettel links",
 		.enabled = false
 	}
 };
@@ -233,14 +222,6 @@ static void initializeZettelMarkdownParser (const langType language)
 
 	/* Wiki link (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
-								   "^n(ext:)\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "_\\2", "w", "{_role=next}{_field=encodedTagName:}{_field=summaryLine:}{_extra=folgezettel}{_advanceTo=1start}", NULL);
-    /* It is necessary to advance at least one letter.  Therefore we
-     * parse against ext: instead of next: here for the next role.*/
-	addLanguageTagMultiTableRegex (language, "main",
-								   "^ext:\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
-								   "\\1", "w", "{_role=next}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
-	addLanguageTagMultiTableRegex (language, "main",
 								   "^\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
 								   "\\1", "w", "{_role=ref}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
 
@@ -369,9 +350,6 @@ extern parserDefinition* ZettelMarkdownParser (void)
 
 	def->fieldTable = ZettelMarkdownFieldTable;
 	def->fieldCount = ARRAY_SIZE (ZettelMarkdownFieldTable);
-
-	def->xtagTable = ZettelMarkdownXtagTable;
-	def->xtagCount = ARRAY_SIZE (ZettelMarkdownXtagTable);
 
 	def->parameterHandlerTable = ZettelMarkdownParameterHandlerTable;
 	def->parameterHandlerCount = ARRAY_SIZE (ZettelMarkdownParameterHandlerTable);
