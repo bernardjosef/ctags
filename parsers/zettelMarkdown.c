@@ -8,6 +8,7 @@
  */
 
 #include "general.h"	/* must always come first */
+#include <string.h>
 #include "entry.h"
 #include "options.h"
 #include "read.h"
@@ -115,19 +116,50 @@ static parameterHandlerTable ZettelMarkdownParameterHandlerTable [] = {
 	}
 };
 
+static char *zPercentEncode (char *buffer, char *string,
+							 size_t length, bool force)
+{
+	static char hex[] = "0123456789abcdef";
+
+	size_t l = string == NULL ? 0 : strlen (string);
+	if (length > l) length = l;
+
+	char *p = buffer;
+	char *c = string;
+
+	for (int i = 0; i < length; c++, i++)
+	{
+		if (i < length && (force || *c < 0x21 || *c > 0x7E || *c == '%'))
+		{
+			*p++ = '%';
+			*p++ = hex[*c >> 4 & 0x0F];
+			*p++ = hex[*c & 0x0F];
+		}
+		else
+			*p++ = *c;
+	}
+
+	return p;
+}
+
 static const char *zRenderFieldTag (const tagEntryInfo *const tag,
 									const char *value CTAGS_ATTR_UNUSED,
 									vString *buffer)
 {
 	char *c = (char *)tag->name;
 
-	vStringCatS (buffer, c);
+	/* Percent-encode title and keywords tags. */
+	size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
+	char *b = xMalloc (3 * length + 1, char);
+	char *p = b;
 
-	/* Find the first unexpected character for a warning message. */
-	if (*c != '!') while (*c > 0x20 && *c < 0x7F) c++;
-	if (*c)
-		verbose ("Unexpected character %#04x in tag %s\n",
-				 (unsigned char)*c, vStringValue (buffer));
+	/* Percent-encode a leading exclamation mark as it conflicts with
+	 * pseudo-tags when sorting. */
+	if (*c == '!') p = zPercentEncode (p, c++, 1, true);
+	p = zPercentEncode (p, c, b + length - p, false);
+
+	vStringNCatS (buffer, b, p - b);
+	eFree (b);
 
 	return vStringValue (buffer);
 }
@@ -222,7 +254,7 @@ static void initializeZettelMarkdownParser (const langType language)
 
 	/* Wiki link (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
-								   "^\\[\\[([^] \t\n]+)\\]\\](\n-+\n)?",
+								   "^\\[\\[([^]]+)\\]\\](\n-+\n)?",
 								   "\\1", "w", "{_role=ref}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
 
 	/* Skip numbered examples (and skip level-two setext headers). */
