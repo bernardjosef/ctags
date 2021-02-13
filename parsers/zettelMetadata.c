@@ -59,7 +59,7 @@ static roleDefinition ZettelMetadataCitekeyRoleTable [] = {
 
 static roleDefinition ZettelMetadataNextRoleTable [] = {
 	{
-		true, "next", "folgezettel references"
+		true, "next", "next zettel references"
 	}
 };
 
@@ -90,7 +90,7 @@ static kindDefinition ZettelMetadataKindTable [] = {
 		ATTACH_ROLES (ZettelMetadataCitekeyRoleTable)
 	},
 	{
-		true, 'n', "next", "folgezettel links",
+		true, 'n', "next", "next zettel links",
 		.referenceOnly = false,
 		ATTACH_ROLES (ZettelMetadataNextRoleTable)
 	}
@@ -137,13 +137,19 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 };
 
 enum zettelMetadataXtag {
-	X_FOLGEZETTEL
+	X_TITLETAG,
+	X_NEXTLINK
 };
 
 static xtagDefinition ZettelMetadataXtagTable [] = {
 	{
-		.name = "folgezettel",
-		.description = "Include extra tags for Folgezettel links",
+		.name = "titletag",
+		.description = "Include extra tags for zettel titles",
+		.enabled = false
+	},
+	{
+		.name = "nextlink",
+		.description = "Include extra tags for next zettel links",
 		.enabled = false
 	}
 };
@@ -186,7 +192,7 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	},
 	{
 		.name = "prefix-tags",
-		.desc = "Prefix title, keyword and Folgezettel tags (true or [false])",
+		.desc = "Prefix title, keyword and next zettel tags (true or [false])",
 		.handleParameter = zmSetPrefix
 	}
 };
@@ -221,40 +227,20 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 									 const char *value CTAGS_ATTR_UNUSED,
 									 vString *buffer)
 {
-	int kind = tag->kindIndex;
 	char *c = (char *)tag->name;
 
-	switch (kind)
-	{
-		case K_TITLE:
-		case K_KEYWORD:
-		{
-			/* Percent-encode title and keywords tags. */
-			size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
-			char *b = xMalloc (3 * length + 1, char);
-			char *p = b;
+	/* Percent-encode title and keywords tags. */
+	size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
+	char *b = xMalloc (3 * length + 1, char);
+	char *p = b;
 
-			/* Percent-encode a leading exclamation mark as it conflicts with
-			 * pseudo-tags when sorting. */
-			if (p == b && *c == '!')
-				p = zmPercentEncode (p, c++, 1, true);
-			p = zmPercentEncode (p, c, b + length - p, false);
+	/* Percent-encode a leading exclamation mark as it conflicts with
+	 * pseudo-tags when sorting. */
+	if (*c == '!') p = zmPercentEncode (p, c++, 1, true);
+	p = zmPercentEncode (p, c, b + length - p, false);
 
-			vStringNCatS (buffer, b, p - b);
-			eFree (b);
-			break;
-		}
-		default:
-			/* Do not percent-encode zettel identifiers and citation keys. */
-			vStringCatS (buffer, c);
-
-			/* Find the first unexpected character for a warning message. */
-			if (*c != '!') while (*c > 0x20 && *c < 0x7F) c++;
-			if (*c)
-				verbose ("Unexpected character %#04x in tag %s\n",
-						 (unsigned char)*c, vStringValue (buffer));
-			break;
-	}
+	vStringNCatS (buffer, b, p - b);
+	eFree (b);
 
 	return vStringValue (buffer);
 }
@@ -574,11 +560,14 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 							eFree (value);
 						}
-						else
+
+						if (!zmPrefix ||
+							isXtagEnabled(ZettelMetadataXtagTable[X_TITLETAG].xtype))
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
 											K_TITLE, R_NONE,
 											token->start_mark.line + 1);
+
 						break;
 					}
 					case K_KEYWORD:
@@ -626,7 +615,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					{
 						if (zmPrefix)
 						{
-							/* Prefix Folgezettel tags. */
+							/* Prefix next zettel tags. */
 							size_t length = token->data.scalar.length;
 							char *b = xMalloc (length + 2, char);
 
@@ -642,7 +631,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						}
 
 						if (!zmPrefix ||
-							isXtagEnabled(ZettelMetadataXtagTable[X_FOLGEZETTEL].xtype))
+							isXtagEnabled(ZettelMetadataXtagTable[X_NEXTLINK].xtype))
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
 											K_NEXT, R_NEXT,

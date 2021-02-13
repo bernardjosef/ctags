@@ -93,7 +93,7 @@ ZettelMarkdown  c/citekey         bibliography       on      bibliography entrie
 ZettelMarkdown  w/wikilink        ref                on      references
 ZettelMetadata  c/citekey         bibliography       on      bibliography references
 ZettelMetadata  k/keyword         index              on      index references
-ZettelMetadata  n/next            next               on      folgezettel references
+ZettelMetadata  n/next            next               on      next zettel references
 
 #
 # all.*
@@ -189,7 +189,7 @@ ZettelMarkdown  c/citekey         bibliography       on      bibliography entrie
 ZettelMarkdown  w/wikilink        ref                on      references
 ZettelMetadata  c/citekey         bibliography       on      bibliography references
 ZettelMetadata  k/keyword         index              on      index references
-ZettelMetadata  n/next            next               on      folgezettel references
+ZettelMetadata  n/next            next               on      next zettel references
 
 #
 # C.*

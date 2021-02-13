@@ -8,7 +8,7 @@ Fypp            guest                     parser run after Fypp parser parses th
 ZettelMarkdown  summary-definition-format Summary format string for definitions (string)
 ZettelMarkdown  summary-reference-format  Summary format string for references (string)
 ZettelMarkdown  xformat                   Specify custom xref format (string)
-ZettelMetadata  prefix-tags               Prefix title, keyword and Folgezettel tags (true or [false])
+ZettelMetadata  prefix-tags               Prefix title, keyword and next zettel tags (true or [false])
 ZettelMetadata  summary-definition-format Summary format string for definitions (string)
 ZettelMetadata  summary-reference-format  Summary format string for references (string)
 
@@ -22,7 +22,7 @@ Fypp	guest	parser run after Fypp parser parses the original input ("NONE" or a p
 ZettelMarkdown	summary-definition-format	Summary format string for definitions (string)
 ZettelMarkdown	summary-reference-format	Summary format string for references (string)
 ZettelMarkdown	xformat	Specify custom xref format (string)
-ZettelMetadata	prefix-tags	Prefix title, keyword and Folgezettel tags (true or [false])
+ZettelMetadata	prefix-tags	Prefix title, keyword and next zettel tags (true or [false])
 ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
 ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
@@ -35,7 +35,7 @@ Fypp	guest	parser run after Fypp parser parses the original input ("NONE" or a p
 ZettelMarkdown	summary-definition-format	Summary format string for definitions (string)
 ZettelMarkdown	summary-reference-format	Summary format string for references (string)
 ZettelMarkdown	xformat	Specify custom xref format (string)
-ZettelMetadata	prefix-tags	Prefix title, keyword and Folgezettel tags (true or [false])
+ZettelMetadata	prefix-tags	Prefix title, keyword and next zettel tags (true or [false])
 ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
 ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
