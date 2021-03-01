@@ -31,10 +31,15 @@ static roleDefinition ZettelMarkdownWikilinkRoleTable [] = {
 	}
 };
 
-static roleDefinition ZettelMarkdownCitekeyRoleTable [] = {
+static roleDefinition ZettelMarkdownCitationRoleTable [] = {
 	{
 		true, "bibliography", "bibliography entries"
 	},
+};
+
+enum zettelMarkdownKind {
+	K_WIKILINK,
+	K_CITATION
 };
 
 static kindDefinition ZettelMarkdownKindTable [] = {
@@ -44,9 +49,9 @@ static kindDefinition ZettelMarkdownKindTable [] = {
 		ATTACH_ROLES (ZettelMarkdownWikilinkRoleTable),
 	},
 	{
-		true, 'c', "citekey", "citation keys",
+		true, 'c', "citation", "citations",
 		.referenceOnly = false,
-		ATTACH_ROLES (ZettelMarkdownCitekeyRoleTable),
+		ATTACH_ROLES (ZettelMarkdownCitationRoleTable),
 	},
 };
 
@@ -60,13 +65,13 @@ static const char *zRenderFieldSummary (const tagEntryInfo *const tag,
 
 static fieldDefinition ZettelMarkdownFieldTable [] = {
 	{
-		.name = "encodedTagName",
+		.name = "tag",
 		.description = "encoded tag name",
 		.render = zRenderFieldTag,
 		.enabled = false
 	},
 	{
-		.name = "summaryLine",
+		.name = "summary",
 		.description = "summary line",
 		.render = zRenderFieldSummary,
 		.enabled = false
@@ -76,6 +81,7 @@ static fieldDefinition ZettelMarkdownFieldTable [] = {
 static char *zXrefFormat = NULL;
 static char *zSummaryDefFormat = "%C";
 static char *zSummaryRefFormat = "%C";
+static stringList *zPrefixList = NULL;
 
 static void zProcessXformatOption (const langType language CTAGS_ATTR_UNUSED,
 								   const char *name CTAGS_ATTR_UNUSED,
@@ -98,6 +104,16 @@ static void zSetSummaryRefFormat (const langType language CTAGS_ATTR_UNUSED,
 	zSummaryRefFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
+static void zAddPrefix (const langType language CTAGS_ATTR_UNUSED,
+						const char *name,
+						const char* arg)
+{
+	/* The first call initializes the prefix list. */
+	if (zPrefixList == NULL) zPrefixList = stringListNew ();
+
+	stringListAdd (zPrefixList, vStringNewInit (arg));
+}
+
 static parameterHandlerTable ZettelMarkdownParameterHandlerTable [] = {
 	{
 		.name = "xformat",
@@ -113,6 +129,11 @@ static parameterHandlerTable ZettelMarkdownParameterHandlerTable [] = {
 		.name = "summary-reference-format",
 		.desc = "Summary format string for references (string)",
 		.handleParameter = zSetSummaryRefFormat
+	},
+	{
+		.name = "prefix",
+		.desc = "Encode prefix in wikilink tags (string)",
+		.handleParameter = zAddPrefix
 	}
 };
 
@@ -129,7 +150,7 @@ static char *zPercentEncode (char *buffer, char *string,
 
 	for (int i = 0; i < length; c++, i++)
 	{
-		if (i < length && (force || *c < 0x21 || *c > 0x7E || *c == '%'))
+		if (force || *c < 0x21 || *c > 0x7E || *c == '%')
 		{
 			*p++ = '%';
 			*p++ = hex[*c >> 4 & 0x0F];
@@ -156,6 +177,40 @@ static const char *zRenderFieldTag (const tagEntryInfo *const tag,
 	/* Percent-encode a leading exclamation mark as it conflicts with
 	 * pseudo-tags when sorting. */
 	if (*c == '!') p = zPercentEncode (p, c++, 1, true);
+
+	if (*c == '!')
+		/* Percent-encode a leading exclamation mark as it conflicts
+		 * with pseudo-tags when sorting. */
+		p = zPercentEncode (p, c++, 1, true);
+	else if (tag->kindIndex == K_WIKILINK)
+	{
+		/* Eventually percent-encode the leading character of wikilink
+		 * tags to make them distinguishable from prefixed tags. */
+		if (*c == '@')
+			/* Percent-encode a leading @ to make it distinguishable
+			 * from a citation key. */
+			p = zPercentEncode (p, c++, 1, true);
+		else if (zPrefixList)
+		{
+			/* Percent-encode the leading character if the tag starts
+			 * with a string from the prefix list. */
+			unsigned int count = stringListCount (zPrefixList);
+
+			for (int i = 0; i < count; i++)
+			{
+				char *prefix = vStringValue (stringListItem (zPrefixList, i));
+				size_t prefixLength = prefix == NULL ? 0 : strlen (prefix);
+
+				if (prefixLength > 0 && strncmp (c, prefix, prefixLength) == 0)
+				{
+					p = zPercentEncode (p, c++, 1, true);
+					break;
+				}
+			}
+		}
+	}
+
+	/* Percent-encode the tag. */
 	p = zPercentEncode (p, c, b + length - p, false);
 
 	vStringNCatS (buffer, b, p - b);
@@ -197,7 +252,7 @@ static void findZettelMarkdownTags (void)
 {
 	/* This is needed to overwrite the value of the _xformat command line
 	 * option.	It can be set to
-	 * "%R %-16{*.encodedTagName} %-10z %4n %-16F %{*.summaryLine}"
+	 * "%R %-16{*.tag} %-10z %4n %-16F %{*.summary}"
 	 * by the ZettelMarkdown xformat parameter for GNU Global. */
 	if (zXrefFormat != NULL)
 	{
@@ -255,7 +310,7 @@ static void initializeZettelMarkdownParser (const langType language)
 	/* Wiki link (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^\\[\\[([^]]+)\\]\\](\n-+\n)?",
-								   "\\1", "w", "{_role=ref}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
+								   "\\1", "w", "{_role=ref}{_field=tag:}{_field=summary:}", NULL);
 
 	/* Skip numbered examples (and skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
@@ -273,7 +328,7 @@ static void initializeZettelMarkdownParser (const langType language)
 	/* Pandoc citation (skip level-two setext headers). */
 	addLanguageTagMultiTableRegex (language, "main",
 								   "^@([a-zA-Z0-9_][a-zA-Z0-9_:.#$%&-+?<>~/]*)(\n-+\n)?",
-								   "@\\1", "c", "{_role=bibliography}{_field=encodedTagName:}{_field=summaryLine:}", NULL);
+								   "@\\1", "c", "{_role=bibliography}{_field=tag:}{_field=summary:}", NULL);
 
 	/* Skip backslash escapes, [, <, `, m, n, @ and level-two setext headers. */
 	addLanguageTagMultiTableRegex (language, "main",

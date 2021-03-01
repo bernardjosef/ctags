@@ -89,9 +89,9 @@ VHDL            e/entity          desigend           on      designed by an arch
 Vera            d/macro           undef              on      undefined
 Vera            h/header          local              on      local header
 Vera            h/header          system             on      system header
-ZettelMarkdown  c/citekey         bibliography       on      bibliography entries
+ZettelMarkdown  c/citation        bibliography       on      bibliography entries
 ZettelMarkdown  w/wikilink        ref                on      references
-ZettelMetadata  c/citekey         bibliography       on      bibliography references
+ZettelMetadata  c/citation        bibliography       on      bibliography references
 ZettelMetadata  k/keyword         index              on      index references
 ZettelMetadata  n/next            next               on      next zettel references
 
@@ -185,9 +185,9 @@ VHDL            e/entity          desigend           on      designed by an arch
 Vera            d/macro           undef              on      undefined
 Vera            h/header          local              on      local header
 Vera            h/header          system             on      system header
-ZettelMarkdown  c/citekey         bibliography       on      bibliography entries
+ZettelMarkdown  c/citation        bibliography       on      bibliography entries
 ZettelMarkdown  w/wikilink        ref                on      references
-ZettelMetadata  c/citekey         bibliography       on      bibliography references
+ZettelMetadata  c/citation        bibliography       on      bibliography references
 ZettelMetadata  k/keyword         index              on      index references
 ZettelMetadata  n/next            next               on      next zettel references
 

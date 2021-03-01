@@ -51,7 +51,7 @@ static roleDefinition ZettelMetadataKeywordRoleTable [] = {
 	}
 };
 
-static roleDefinition ZettelMetadataCitekeyRoleTable [] = {
+static roleDefinition ZettelMetadataCitationRoleTable [] = {
 	{
 		true, "bibliography", "bibliography references"
 	}
@@ -68,7 +68,7 @@ enum zettelMetadataKind {
 	K_ID,
 	K_TITLE,
 	K_KEYWORD,
-	K_CITEKEY,
+	K_CITATION,
 	K_NEXT
 };
 
@@ -85,9 +85,9 @@ static kindDefinition ZettelMetadataKindTable [] = {
 		ATTACH_ROLES (ZettelMetadataKeywordRoleTable)
 	},
 	{
-		true, 'c', "citekey", "citation keys",
+		true, 'c', "citation", "citations",
 		.referenceOnly = false,
-		ATTACH_ROLES (ZettelMetadataCitekeyRoleTable)
+		ATTACH_ROLES (ZettelMetadataCitationRoleTable)
 	},
 	{
 		true, 'n', "next", "next zettel links",
@@ -113,13 +113,13 @@ enum zettelMetadataField {
 
 static fieldDefinition ZettelMetadataFieldTable [] = {
 	{
-		.name = "encodedTagName",
+		.name = "tag",
 		.description = "encoded tag name",
 		.render = zmRenderFieldTag,
 		.enabled = false
 	},
 	{
-		.name = "summaryLine",
+		.name = "summary",
 		.description = "summary line",
 		.render = zmRenderFieldSummary,
 		.enabled = false
@@ -137,26 +137,29 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 };
 
 enum zettelMetadataXtag {
-	X_TITLETAG,
-	X_NEXTLINK
+	X_NONE = -1,
+	X_TITLE,
+	X_NEXT
 };
 
 static xtagDefinition ZettelMetadataXtagTable [] = {
 	{
-		.name = "titletag",
-		.description = "Include extra tags for zettel titles",
+		.name = "title",
+		.description = "Include extra unprefixed tags for prefixed title tags",
 		.enabled = false
 	},
 	{
-		.name = "nextlink",
-		.description = "Include extra tags for next zettel links",
+		.name = "next",
+		.description = "Include extra unprefixed tags for prefixed next tags",
 		.enabled = false
 	}
 };
 
 static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
-static bool zmPrefix = false;
+static char *zmTitlePrefix = NULL;
+static char *zmKeywordPrefix = NULL;
+static char *zmNextPrefix = NULL;
 
 static void zmSetSummaryDefFormat (const langType language CTAGS_ATTR_UNUSED,
 								   const char *name,
@@ -172,11 +175,25 @@ static void zmSetSummaryRefFormat (const langType language CTAGS_ATTR_UNUSED,
 	zmSummaryRefFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
-static void zmSetPrefix (const langType language CTAGS_ATTR_UNUSED,
-						 const char *name,
-						 const char *arg)
+static void zmSetTitlePrefix (const langType language CTAGS_ATTR_UNUSED,
+							  const char *name,
+							  const char* arg)
 {
-	zmPrefix = paramParserBool (arg, zmPrefix, name, "parameter");
+	zmTitlePrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+}
+
+static void zmSetKeywordPrefix (const langType language CTAGS_ATTR_UNUSED,
+								const char *name,
+								const char* arg)
+{
+	zmKeywordPrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+}
+
+static void zmSetNextPrefix (const langType language CTAGS_ATTR_UNUSED,
+							 const char *name,
+							 const char* arg)
+{
+	zmNextPrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
@@ -191,9 +208,19 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.handleParameter = zmSetSummaryRefFormat
 	},
 	{
-		.name = "prefix-tags",
-		.desc = "Prefix title, keyword and next zettel tags (true or [false])",
-		.handleParameter = zmSetPrefix
+		.name = "prefix-titles",
+		.desc = "Prefix title tags (string)",
+		.handleParameter = zmSetTitlePrefix
+	},
+	{
+		.name = "prefix-keywords",
+		.desc = "Prefix keyword tags (string)",
+		.handleParameter = zmSetKeywordPrefix
+	},
+	{
+		.name = "prefix-next",
+		.desc = "Prefix next tags (string)",
+		.handleParameter = zmSetNextPrefix
 	}
 };
 
@@ -210,7 +237,7 @@ static char *zmPercentEncode (char *buffer, char *string,
 
 	for (int i = 0; i < length; c++, i++)
 	{
-		if (i < length && (force || *c < 0x21 || *c > 0x7E || *c == '%'))
+		if (force || *c < 0x21 || *c > 0x7E || *c == '%')
 		{
 			*p++ = '%';
 			*p++ = hex[*c >> 4 & 0x0F];
@@ -229,14 +256,50 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 {
 	char *c = (char *)tag->name;
 
-	/* Percent-encode title and keywords tags. */
 	size_t length = c == NULL ? 0 : 3 * strlen (c) + 1;
 	char *b = xMalloc (3 * length + 1, char);
 	char *p = b;
 
-	/* Percent-encode a leading exclamation mark as it conflicts with
-	 * pseudo-tags when sorting. */
-	if (*c == '!') p = zmPercentEncode (p, c++, 1, true);
+	if (*c == '!')
+		/* Percent-encode a leading exclamation mark as it conflicts
+		 * with pseudo-tags when sorting. */
+		p = zmPercentEncode (p, c++, 1, true);
+	else
+	{
+		/* Eventually percent-encode the leading character of an
+		 * unprefixed tag to make it distinguishable from a prefixed
+		 * tag. */
+		size_t titlePrefixLength = zmTitlePrefix == NULL
+			? 0 : strlen (zmTitlePrefix);
+		size_t keywordPrefixLength = zmKeywordPrefix == NULL
+			? 0 : strlen (zmKeywordPrefix);
+		size_t nextPrefixLength =  zmNextPrefix == NULL
+			? 0 : strlen (zmNextPrefix);
+
+		if ((tag->kindIndex == K_ID
+			 || (tag->kindIndex == K_TITLE
+				 && (titlePrefixLength == 0
+					 || isTagExtraBitMarked (tag, ZettelMetadataXtagTable[X_TITLE].xtype)))
+			 || (tag->kindIndex == K_KEYWORD
+				 && keywordPrefixLength == 0)
+			 || (tag->kindIndex == K_NEXT
+				 && (nextPrefixLength == 0
+					 || isTagExtraBitMarked (tag, ZettelMetadataXtagTable[X_NEXT].xtype))))
+			/* Percent-encode a leading @ to make it distinguishable
+			 * from a citation key. */
+			&& (*c == '@'
+				/* Percent-encode the leading character if the tag
+				 * starts with a prefix. */
+				|| (titlePrefixLength > 0
+					&& strncmp (c, zmTitlePrefix, titlePrefixLength) == 0)
+				|| (keywordPrefixLength > 0
+					&& strncmp (c, zmKeywordPrefix, keywordPrefixLength) == 0)
+				|| (nextPrefixLength > 0
+					&& strncmp (c, zmNextPrefix, nextPrefixLength) == 0)))
+			p = zmPercentEncode (p, c++, 1, true);
+	}
+
+	/* Percent-encode the tag. */
 	p = zmPercentEncode (p, c, b + length - p, false);
 
 	vStringNCatS (buffer, b, p - b);
@@ -275,7 +338,7 @@ static const char *zmRenderFieldSummary (const tagEntryInfo *const tag,
 }
 
 enum zettelMetadataScalar {
-	S_NONE,
+	S_NONE = -1,
 	S_KEY,
 	S_VALUE
 };
@@ -340,16 +403,16 @@ static void zmClearCorkStack (zmSubparser *subparser)
 	{
 		zmCorkIndexStack *t = subparser->corkStack;
 
-		if (subparser->id &&
-			(ZettelMetadataFieldTable[F_IDENTIFIER].enabled ||
-			 ZettelMetadataFieldTable[F_SUMMARY].enabled))
+		if (subparser->id
+			&& (ZettelMetadataFieldTable[F_IDENTIFIER].enabled
+				|| ZettelMetadataFieldTable[F_SUMMARY].enabled))
 			attachParserFieldToCorkEntry (t->corkIndex,
 										  ZettelMetadataFieldTable[F_IDENTIFIER].ftype,
 										  subparser->id);
 
-		if (subparser->title &&
-			(ZettelMetadataFieldTable[F_TITLE].enabled ||
-			 ZettelMetadataFieldTable[F_SUMMARY].enabled))
+		if (subparser->title
+			&& (ZettelMetadataFieldTable[F_TITLE].enabled
+				|| ZettelMetadataFieldTable[F_SUMMARY].enabled))
 			attachParserFieldToCorkEntry (t->corkIndex,
 										  ZettelMetadataFieldTable[F_TITLE].ftype,
 										  subparser->title);
@@ -387,7 +450,7 @@ static void zmResetSubparser (zmSubparser *subparser)
 	zmClearCorkStack (subparser);
 }
 
-static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, int roleIndex, unsigned int line)
+static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, int roleIndex, int extraIndex, unsigned int line)
 {
 	if (ZettelMetadataKindTable[kindIndex].enabled)
 	{
@@ -397,8 +460,8 @@ static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, 
 
 		if (roleIndex == R_NONE)
 			initTagEntry (&tag, value, kindIndex);
-		else if (roleIndex < ZettelMetadataKindTable[kindIndex].nRoles &&
-				 ZettelMetadataKindTable[kindIndex].roles[roleIndex].enabled)
+		else if (roleIndex < ZettelMetadataKindTable[kindIndex].nRoles
+				 && ZettelMetadataKindTable[kindIndex].roles[roleIndex].enabled)
 			initRefTagEntry (&tag, value, kindIndex, roleIndex);
 
 		if (tag.kindIndex != K_NONE)
@@ -415,6 +478,9 @@ static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, 
 			attachParserField (&tag, false,
 							   ZettelMetadataFieldTable[F_SUMMARY].ftype,
 							   NULL);
+
+			if (extraIndex != X_NONE)
+				markTagExtraBit (&tag, ZettelMetadataXtagTable[extraIndex].xtype);
 
 			zmPushTag (subparser, makeTagEntry (&tag));
 		}
@@ -473,32 +539,32 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 			{
 				char *value = (char *)token->data.scalar.value;
 
-				if (token->data.scalar.length == 2 &&
-					strncmp (value, "id", 2) == 0)
+				if (token->data.scalar.length == 2
+					&& strncmp (value, "id", 2) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_ID;
 				}
-				else if (token->data.scalar.length == 5 &&
-						 strncmp (value, "title", 5) == 0)
+				else if (token->data.scalar.length == 5
+						 && strncmp (value, "title", 5) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_TITLE;
 				}
-				else if (token->data.scalar.length == 8 &&
-						 strncmp (value, "keywords", 8) == 0)
+				else if (token->data.scalar.length == 8
+						 && strncmp (value, "keywords", 8) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_KEYWORD;
 				}
-				else if (token->data.scalar.length == 6 &&
-						 strncmp (value, "nocite", 6) == 0)
+				else if (token->data.scalar.length == 6
+						 && strncmp (value, "nocite", 6) == 0)
 				{
 					subparser->scalar = S_VALUE;
-					subparser->kind = K_CITEKEY;
+					subparser->kind = K_CITATION;
 				}
-				else if (token->data.scalar.length == 4 &&
-						 strncmp (value, "next", 4) == 0)
+				else if (token->data.scalar.length == 4
+						 && strncmp (value, "next", 4) == 0)
 				{
 					subparser->scalar = S_VALUE;
 					subparser->kind = K_NEXT;
@@ -506,8 +572,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 				else
 					subparser->kind = K_NONE;
 			}
-			else if (subparser->scalar == S_VALUE &&
-					 subparser->mapping == 1)
+			else if (subparser->scalar == S_VALUE && subparser->mapping == 1)
 			{
 				switch (subparser->kind)
 				{
@@ -526,7 +591,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 						zmMakeTagEntry (subparser,
 										(char *)token->data.scalar.value,
-										K_ID, R_NONE,
+										K_ID, R_NONE, X_NONE,
 										token->start_mark.line + 1);
 						break;
 					}
@@ -543,47 +608,48 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 								 length);
 						subparser->title[length] = '\0';
 
-						if (zmPrefix)
+						if (zmTitlePrefix)
 						{
 							/* Prefix title tags. */
-							size_t length = token->data.scalar.length;
-							char *b = xMalloc (length + 2, char);
+							char *b = xMalloc (token->data.scalar.length + strlen (zmTitlePrefix) + 1, char);
 
-							b = strcpy (b, "_");
+							b = strcpy (b, zmTitlePrefix);
 
 							char *value = strcat (b, ((char *)token->data.scalar.value));
 
 							zmMakeTagEntry (subparser,
 											value,
-											K_TITLE, R_NONE,
+											K_TITLE, R_NONE, X_NONE,
 											token->start_mark.line + 1);
 
 							eFree (value);
-						}
 
-						if (!zmPrefix ||
-							isXtagEnabled(ZettelMetadataXtagTable[X_TITLETAG].xtype))
+							if (isXtagEnabled(ZettelMetadataXtagTable[X_TITLE].xtype))
+								zmMakeTagEntry (subparser,
+												(char *)token->data.scalar.value,
+												K_TITLE, R_NONE, X_TITLE,
+												token->start_mark.line + 1);
+						}
+						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_TITLE, R_NONE,
+											K_TITLE, R_NONE, X_NONE,
 											token->start_mark.line + 1);
-
 						break;
 					}
 					case K_KEYWORD:
-						if (zmPrefix)
+						if (zmKeywordPrefix)
 						{
 							/* Prefix keyword tags. */
-							size_t length = token->data.scalar.length;
-							char *b = xMalloc (length + 2, char);
+							char *b = xMalloc (token->data.scalar.length + strlen (zmKeywordPrefix) + 1, char);
 
-							b = strcpy (b, "#");
+							b = strcpy (b, zmKeywordPrefix);
 
 							char *value = strcat (b, ((char *)token->data.scalar.value));
 
 							zmMakeTagEntry (subparser,
 											value,
-											K_KEYWORD, R_INDEX,
+											K_KEYWORD, R_INDEX, X_NONE,
 											token->start_mark.line + 1);
 
 							eFree (value);
@@ -591,10 +657,10 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_KEYWORD, R_INDEX,
+											K_KEYWORD, R_INDEX, X_NONE,
 											token->start_mark.line + 1);
 						break;
-					case K_CITEKEY:
+					case K_CITATION:
 					{
 						/* Split the scalar value into citation keys. */
 						char *value = strdup ((char *)token->data.scalar.value);
@@ -605,7 +671,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 							if (*citekey == '@')
 								zmMakeTagEntry (subparser,
 												citekey,
-												K_CITEKEY, R_BIBLIOGRAPHY,
+												K_CITATION, R_BIBLIOGRAPHY, X_NONE,
 												token->start_mark.line + 1);
 
 						eFree (value);
@@ -613,30 +679,32 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 					}
 					case K_NEXT:
 					{
-						if (zmPrefix)
+						if (zmNextPrefix)
 						{
-							/* Prefix next zettel tags. */
-							size_t length = token->data.scalar.length;
-							char *b = xMalloc (length + 2, char);
+							/* Prefix next tags. */
+							char *b = xMalloc (token->data.scalar.length + strlen (zmNextPrefix) + 1, char);
 
-							b = strcpy (b, "_");
+							b = strcpy (b, zmNextPrefix);
 
 							char *value = strcat (b, ((char *)token->data.scalar.value));
 							zmMakeTagEntry (subparser,
 											value,
-											K_NEXT, R_NEXT,
+											K_NEXT, R_NEXT, X_NONE,
 											token->start_mark.line + 1);
 
 							eFree (value);
-						}
 
-						if (!zmPrefix ||
-							isXtagEnabled(ZettelMetadataXtagTable[X_NEXTLINK].xtype))
+							if (isXtagEnabled(ZettelMetadataXtagTable[X_NEXT].xtype))
+								zmMakeTagEntry (subparser,
+												(char *)token->data.scalar.value,
+												K_NEXT, R_NEXT, X_NEXT,
+												token->start_mark.line + 1);
+						}
+						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_NEXT, R_NEXT,
+											K_NEXT, R_NEXT, X_NONE,
 											token->start_mark.line + 1);
-
 						break;
 					}
 					default:

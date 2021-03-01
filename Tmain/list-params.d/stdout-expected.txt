@@ -5,10 +5,13 @@ CPreProcessor   define                    define replacement for an identifier (
 CPreProcessor   if0                       examine code within "#if 0" branch (true or [false])
 CPreProcessor   ignore                    a token to be specially handled
 Fypp            guest                     parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+ZettelMarkdown  prefix                    Encode prefix in wikilink tags (string)
 ZettelMarkdown  summary-definition-format Summary format string for definitions (string)
 ZettelMarkdown  summary-reference-format  Summary format string for references (string)
 ZettelMarkdown  xformat                   Specify custom xref format (string)
-ZettelMetadata  prefix-tags               Prefix title, keyword and next zettel tags (true or [false])
+ZettelMetadata  prefix-keywords           Prefix keyword tags (string)
+ZettelMetadata  prefix-next               Prefix next tags (string)
+ZettelMetadata  prefix-titles             Prefix title tags (string)
 ZettelMetadata  summary-definition-format Summary format string for definitions (string)
 ZettelMetadata  summary-reference-format  Summary format string for references (string)
 
@@ -19,10 +22,13 @@ CPreProcessor	define	define replacement for an identifier (name(params,...)=defi
 CPreProcessor	if0	examine code within "#if 0" branch (true or [false])
 CPreProcessor	ignore	a token to be specially handled
 Fypp	guest	parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+ZettelMarkdown	prefix	Encode prefix in wikilink tags (string)
 ZettelMarkdown	summary-definition-format	Summary format string for definitions (string)
 ZettelMarkdown	summary-reference-format	Summary format string for references (string)
 ZettelMarkdown	xformat	Specify custom xref format (string)
-ZettelMetadata	prefix-tags	Prefix title, keyword and next zettel tags (true or [false])
+ZettelMetadata	prefix-keywords	Prefix keyword tags (string)
+ZettelMetadata	prefix-next	Prefix next tags (string)
+ZettelMetadata	prefix-titles	Prefix title tags (string)
 ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
 ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
@@ -32,10 +38,13 @@ CPreProcessor	define	define replacement for an identifier (name(params,...)=defi
 CPreProcessor	if0	examine code within "#if 0" branch (true or [false])
 CPreProcessor	ignore	a token to be specially handled
 Fypp	guest	parser run after Fypp parser parses the original input ("NONE" or a parser name [Fortran])
+ZettelMarkdown	prefix	Encode prefix in wikilink tags (string)
 ZettelMarkdown	summary-definition-format	Summary format string for definitions (string)
 ZettelMarkdown	summary-reference-format	Summary format string for references (string)
 ZettelMarkdown	xformat	Specify custom xref format (string)
-ZettelMetadata	prefix-tags	Prefix title, keyword and next zettel tags (true or [false])
+ZettelMetadata	prefix-keywords	Prefix keyword tags (string)
+ZettelMetadata	prefix-next	Prefix next tags (string)
+ZettelMetadata	prefix-titles	Prefix title tags (string)
 ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
 ZettelMetadata	summary-reference-format	Summary format string for references (string)
 

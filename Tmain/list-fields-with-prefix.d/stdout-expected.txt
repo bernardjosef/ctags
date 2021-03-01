@@ -38,9 +38,9 @@ x       UCTAGSxpath          no      NONE             s--    no    xpath for the
 -       UCTAGSparameter      no      SystemVerilog    --b    no    parameter whose value can be overridden.
 -       UCTAGSarchitecture   yes     VHDL             s--    no    architecture designing the entity
 -       UCTAGSparameter      no      Verilog          --b    no    parameter whose value can be overridden.
--       UCTAGSencodedTagName no      ZettelMarkdown   s--    no    encoded tag name
--       UCTAGSsummaryLine    no      ZettelMarkdown   s--    no    summary line
--       UCTAGSencodedTagName no      ZettelMetadata   s--    no    encoded tag name
+-       UCTAGSsummary        no      ZettelMarkdown   s--    no    summary line
+-       UCTAGStag            no      ZettelMarkdown   s--    no    encoded tag name
 -       UCTAGSidentifier     no      ZettelMetadata   s--    no    zettel identifier
--       UCTAGSsummaryLine    no      ZettelMetadata   s--    no    summary line
+-       UCTAGSsummary        no      ZettelMetadata   s--    no    summary line
+-       UCTAGStag            no      ZettelMetadata   s--    no    encoded tag name
 -       UCTAGStitle          no      ZettelMetadata   s--    no    zettel title
