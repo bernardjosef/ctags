@@ -136,25 +136,6 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 	}
 };
 
-enum zettelMetadataXtag {
-	X_NONE = -1,
-	X_TITLE,
-	X_NEXT
-};
-
-static xtagDefinition ZettelMetadataXtagTable [] = {
-	{
-		.name = "title",
-		.description = "Include extra unprefixed tags for prefixed title tags",
-		.enabled = false
-	},
-	{
-		.name = "next",
-		.description = "Include extra unprefixed tags for prefixed next tags",
-		.enabled = false
-	}
-};
-
 static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmTitlePrefix = NULL;
@@ -278,13 +259,11 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 
 		if ((tag->kindIndex == K_ID
 			 || (tag->kindIndex == K_TITLE
-				 && (titlePrefixLength == 0
-					 || isTagExtraBitMarked (tag, ZettelMetadataXtagTable[X_TITLE].xtype)))
+				 && titlePrefixLength == 0)
 			 || (tag->kindIndex == K_KEYWORD
 				 && keywordPrefixLength == 0)
 			 || (tag->kindIndex == K_NEXT
-				 && (nextPrefixLength == 0
-					 || isTagExtraBitMarked (tag, ZettelMetadataXtagTable[X_NEXT].xtype))))
+				 && nextPrefixLength == 0))
 			/* Percent-encode a leading @ to make it distinguishable
 			 * from a citation key. */
 			&& (*c == '@'
@@ -450,7 +429,7 @@ static void zmResetSubparser (zmSubparser *subparser)
 	zmClearCorkStack (subparser);
 }
 
-static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, int roleIndex, int extraIndex, unsigned int line)
+static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, int roleIndex, unsigned int line)
 {
 	if (ZettelMetadataKindTable[kindIndex].enabled)
 	{
@@ -478,9 +457,6 @@ static void zmMakeTagEntry (zmSubparser *subparser, char *value, int kindIndex, 
 			attachParserField (&tag, false,
 							   ZettelMetadataFieldTable[F_SUMMARY].ftype,
 							   NULL);
-
-			if (extraIndex != X_NONE)
-				markTagExtraBit (&tag, ZettelMetadataXtagTable[extraIndex].xtype);
 
 			zmPushTag (subparser, makeTagEntry (&tag));
 		}
@@ -591,7 +567,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 						zmMakeTagEntry (subparser,
 										(char *)token->data.scalar.value,
-										K_ID, R_NONE, X_NONE,
+										K_ID, R_NONE,
 										token->start_mark.line + 1);
 						break;
 					}
@@ -619,21 +595,15 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 							zmMakeTagEntry (subparser,
 											value,
-											K_TITLE, R_NONE, X_NONE,
+											K_TITLE, R_NONE,
 											token->start_mark.line + 1);
 
 							eFree (value);
-
-							if (isXtagEnabled(ZettelMetadataXtagTable[X_TITLE].xtype))
-								zmMakeTagEntry (subparser,
-												(char *)token->data.scalar.value,
-												K_TITLE, R_NONE, X_TITLE,
-												token->start_mark.line + 1);
 						}
 						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_TITLE, R_NONE, X_NONE,
+											K_TITLE, R_NONE,
 											token->start_mark.line + 1);
 						break;
 					}
@@ -649,7 +619,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 							zmMakeTagEntry (subparser,
 											value,
-											K_KEYWORD, R_INDEX, X_NONE,
+											K_KEYWORD, R_INDEX,
 											token->start_mark.line + 1);
 
 							eFree (value);
@@ -657,7 +627,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_KEYWORD, R_INDEX, X_NONE,
+											K_KEYWORD, R_INDEX,
 											token->start_mark.line + 1);
 						break;
 					case K_CITATION:
@@ -671,7 +641,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 							if (*citekey == '@')
 								zmMakeTagEntry (subparser,
 												citekey,
-												K_CITATION, R_BIBLIOGRAPHY, X_NONE,
+												K_CITATION, R_BIBLIOGRAPHY,
 												token->start_mark.line + 1);
 
 						eFree (value);
@@ -689,21 +659,15 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 							char *value = strcat (b, ((char *)token->data.scalar.value));
 							zmMakeTagEntry (subparser,
 											value,
-											K_NEXT, R_NEXT, X_NONE,
+											K_NEXT, R_NEXT,
 											token->start_mark.line + 1);
 
 							eFree (value);
-
-							if (isXtagEnabled(ZettelMetadataXtagTable[X_NEXT].xtype))
-								zmMakeTagEntry (subparser,
-												(char *)token->data.scalar.value,
-												K_NEXT, R_NEXT, X_NEXT,
-												token->start_mark.line + 1);
 						}
 						else
 							zmMakeTagEntry (subparser,
 											(char *)token->data.scalar.value,
-											K_NEXT, R_NEXT, X_NONE,
+											K_NEXT, R_NEXT,
 											token->start_mark.line + 1);
 						break;
 					}
@@ -757,9 +721,6 @@ extern parserDefinition* ZettelMetadataParser (void)
 
 	def->fieldTable = ZettelMetadataFieldTable;
 	def->fieldCount = ARRAY_SIZE (ZettelMetadataFieldTable);
-
-	def->xtagTable = ZettelMetadataXtagTable;
-	def->xtagCount = ARRAY_SIZE (ZettelMetadataXtagTable);
 
 	def->parameterHandlerTable = ZettelMetadataParameterHandlerTable;
 	def->parameterHandlerCount = ARRAY_SIZE (ZettelMetadataParameterHandlerTable);
