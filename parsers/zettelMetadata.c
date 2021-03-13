@@ -138,7 +138,6 @@ static fieldDefinition ZettelMetadataFieldTable [] = {
 
 static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
-static char *zmTitlePrefix = NULL;
 static char *zmKeywordPrefix = NULL;
 static char *zmNextPrefix = NULL;
 
@@ -154,13 +153,6 @@ static void zmSetSummaryRefFormat (const langType language CTAGS_ATTR_UNUSED,
 								   const char *arg)
 {
 	zmSummaryRefFormat = PARSER_TRASH_BOX (eStrdup (arg), eFree);
-}
-
-static void zmSetTitlePrefix (const langType language CTAGS_ATTR_UNUSED,
-							  const char *name,
-							  const char* arg)
-{
-	zmTitlePrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
 static void zmSetKeywordPrefix (const langType language CTAGS_ATTR_UNUSED,
@@ -189,12 +181,7 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.handleParameter = zmSetSummaryRefFormat
 	},
 	{
-		.name = "prefix-titles",
-		.desc = "Prefix title tags (string)",
-		.handleParameter = zmSetTitlePrefix
-	},
-	{
-		.name = "prefix-keywords",
+		.name = "prefix-keyword",
 		.desc = "Prefix keyword tags (string)",
 		.handleParameter = zmSetKeywordPrefix
 	},
@@ -250,16 +237,13 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 		/* Eventually percent-encode the leading character of an
 		 * unprefixed tag to make it distinguishable from a prefixed
 		 * tag. */
-		size_t titlePrefixLength = zmTitlePrefix == NULL
-			? 0 : strlen (zmTitlePrefix);
 		size_t keywordPrefixLength = zmKeywordPrefix == NULL
 			? 0 : strlen (zmKeywordPrefix);
 		size_t nextPrefixLength =  zmNextPrefix == NULL
 			? 0 : strlen (zmNextPrefix);
 
 		if ((tag->kindIndex == K_ID
-			 || (tag->kindIndex == K_TITLE
-				 && titlePrefixLength == 0)
+			 || tag->kindIndex == K_TITLE
 			 || (tag->kindIndex == K_KEYWORD
 				 && keywordPrefixLength == 0)
 			 || (tag->kindIndex == K_NEXT
@@ -268,9 +252,7 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 			 * from a citation key. */
 			&& (*c == '@'
 				/* Percent-encode the leading character if the tag
-				 * starts with a prefix. */
-				|| (titlePrefixLength > 0
-					&& strncmp (c, zmTitlePrefix, titlePrefixLength) == 0)
+				 * starts with a prefix string. */
 				|| (keywordPrefixLength > 0
 					&& strncmp (c, zmKeywordPrefix, keywordPrefixLength) == 0)
 				|| (nextPrefixLength > 0
@@ -584,27 +566,10 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 								 length);
 						subparser->title[length] = '\0';
 
-						if (zmTitlePrefix)
-						{
-							/* Prefix title tags. */
-							char *b = xMalloc (token->data.scalar.length + strlen (zmTitlePrefix) + 1, char);
-
-							b = strcpy (b, zmTitlePrefix);
-
-							char *value = strcat (b, ((char *)token->data.scalar.value));
-
-							zmMakeTagEntry (subparser,
-											value,
-											K_TITLE, R_NONE,
-											token->start_mark.line + 1);
-
-							eFree (value);
-						}
-						else
-							zmMakeTagEntry (subparser,
-											(char *)token->data.scalar.value,
-											K_TITLE, R_NONE,
-											token->start_mark.line + 1);
+						zmMakeTagEntry (subparser,
+										(char *)token->data.scalar.value,
+										K_TITLE, R_NONE,
+										token->start_mark.line + 1);
 						break;
 					}
 					case K_KEYWORD:
