@@ -68,7 +68,7 @@ enum zettelMetadataKind {
 	K_ID,
 	K_TITLE,
 	K_KEYWORD,
-	K_CITATION,
+	K_NOCITE,
 	K_NEXT
 };
 
@@ -140,6 +140,7 @@ static char *zmSummaryDefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata
 static char *zmSummaryRefFormat = "%{ZettelMetadata.identifier}:%{ZettelMetadata.title}";
 static char *zmKeywordPrefix = NULL;
 static char *zmNextPrefix = NULL;
+static char *zmNocitePrefix = NULL;
 
 static void zmSetSummaryDefFormat (const langType language CTAGS_ATTR_UNUSED,
 								   const char *name,
@@ -169,6 +170,13 @@ static void zmSetNextPrefix (const langType language CTAGS_ATTR_UNUSED,
 	zmNextPrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
 }
 
+static void zmSetNocitePrefix (const langType language CTAGS_ATTR_UNUSED,
+							   const char *name,
+							   const char* arg)
+{
+	zmNocitePrefix = PARSER_TRASH_BOX (eStrdup (arg), eFree);
+}
+
 static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 	{
 		.name = "summary-definition-format",
@@ -189,6 +197,11 @@ static parameterHandlerTable ZettelMetadataParameterHandlerTable [] = {
 		.name = "prefix-next",
 		.desc = "Prefix next tags (string)",
 		.handleParameter = zmSetNextPrefix
+	},
+	{
+		.name = "prefix-nocite",
+		.desc = "Prefix nocite tags (string)",
+		.handleParameter = zmSetNocitePrefix
 	}
 };
 
@@ -241,6 +254,8 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 			? 0 : strlen (zmKeywordPrefix);
 		size_t nextPrefixLength =  zmNextPrefix == NULL
 			? 0 : strlen (zmNextPrefix);
+		size_t nocitePrefixLength =	 zmNocitePrefix == NULL
+			? 0 : strlen (zmNocitePrefix);
 
 		if ((tag->kindIndex == K_ID
 			 || tag->kindIndex == K_TITLE
@@ -256,7 +271,9 @@ static const char *zmRenderFieldTag (const tagEntryInfo *const tag,
 				|| (keywordPrefixLength > 0
 					&& strncmp (c, zmKeywordPrefix, keywordPrefixLength) == 0)
 				|| (nextPrefixLength > 0
-					&& strncmp (c, zmNextPrefix, nextPrefixLength) == 0)))
+					&& strncmp (c, zmNextPrefix, nextPrefixLength) == 0)
+				|| (nocitePrefixLength > 0
+					&& strncmp (c, zmNocitePrefix, nocitePrefixLength) == 0)))
 			p = zmPercentEncode (p, c++, 1, true);
 	}
 
@@ -519,7 +536,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 						 && strncmp (value, "nocite", 6) == 0)
 				{
 					subparser->scalar = S_VALUE;
-					subparser->kind = K_CITATION;
+					subparser->kind = K_NOCITE;
 				}
 				else if (token->data.scalar.length == 4
 						 && strncmp (value, "next", 4) == 0)
@@ -595,7 +612,7 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 											K_KEYWORD, R_INDEX,
 											token->start_mark.line + 1);
 						break;
-					case K_CITATION:
+					case K_NOCITE:
 					{
 						/* Split the scalar value into citation keys. */
 						char *value = strdup ((char *)token->data.scalar.value);
@@ -604,10 +621,29 @@ static void zmNewTokenCallback (yamlSubparser *yamlSubparser,
 
 						while ((citekey = strsep (&p, ", \t\n\r")) != NULL)
 							if (*citekey == '@')
-								zmMakeTagEntry (subparser,
-												citekey,
-												K_CITATION, R_BIBLIOGRAPHY,
-												token->start_mark.line + 1);
+							{
+								if (zmNocitePrefix)
+								{
+									/* Prefix nocite tags. */
+									char *b = xMalloc (token->data.scalar.length + strlen (zmNocitePrefix) + 1, char);
+
+									b = strcpy (b, zmNocitePrefix);
+
+									char *value = strcat (b, citekey);
+
+									zmMakeTagEntry (subparser,
+													value,
+													K_NOCITE, R_INDEX,
+													token->start_mark.line + 1);
+
+									eFree (value);
+								}
+								else
+									zmMakeTagEntry (subparser,
+													citekey,
+													K_NOCITE, R_BIBLIOGRAPHY,
+													token->start_mark.line + 1);
+							}
 
 						eFree (value);
 						break;

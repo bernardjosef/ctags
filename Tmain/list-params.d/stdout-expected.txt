@@ -11,6 +11,7 @@ ZettelMarkdown  summary-reference-format  Summary format string for references (
 ZettelMarkdown  xformat                   Specify custom xref format (string)
 ZettelMetadata  prefix-keyword            Prefix keyword tags (string)
 ZettelMetadata  prefix-next               Prefix next tags (string)
+ZettelMetadata  prefix-nocite             Prefix nocite tags (string)
 ZettelMetadata  summary-definition-format Summary format string for definitions (string)
 ZettelMetadata  summary-reference-format  Summary format string for references (string)
 
@@ -27,6 +28,7 @@ ZettelMarkdown	summary-reference-format	Summary format string for references (st
 ZettelMarkdown	xformat	Specify custom xref format (string)
 ZettelMetadata	prefix-keyword	Prefix keyword tags (string)
 ZettelMetadata	prefix-next	Prefix next tags (string)
+ZettelMetadata	prefix-nocite	Prefix nocite tags (string)
 ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
 ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
@@ -42,6 +44,7 @@ ZettelMarkdown	summary-reference-format	Summary format string for references (st
 ZettelMarkdown	xformat	Specify custom xref format (string)
 ZettelMetadata	prefix-keyword	Prefix keyword tags (string)
 ZettelMetadata	prefix-next	Prefix next tags (string)
+ZettelMetadata	prefix-nocite	Prefix nocite tags (string)
 ZettelMetadata	summary-definition-format	Summary format string for definitions (string)
 ZettelMetadata	summary-reference-format	Summary format string for references (string)
 
